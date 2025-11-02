@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Title -->
-    <title>UOC Exam Management V80</title>
+    <title>UOC Exam Management V82</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -426,7 +426,7 @@
     <nav id="main-nav" class="bg-gray-800 text-white p-4 sticky top-0 z-50">
         <div class="container max-w-2xl mx-auto flex justify-between items-center">
             <!-- V60: Title Update -->
-            <h1 class="text-lg font-bold text-white bg-red-600 px-3 py-1 rounded-md shadow-md">UOC Exam Management (V77)</h1>
+            <h1 class="text-lg font-bold text-white bg-red-600 px-3 py-1 rounded-md shadow-md">UOC Exam Management (V81)</h1>
             
             <!-- Navigation buttons on the right -->
             <div class="flex gap-4">
@@ -640,17 +640,18 @@
                 <div class="flex flex-col sm:flex-row gap-4 mb-3">
                     <!-- Radio Button Toggle -->
                     <div class="flex items-center">
-                        <input type="radio" id="filter-all" name="report-filter" value="all" checked class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
+                        <input type="radio" id="filter-all" name="report-filter" value="all" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
                         <label for="filter-all" class="ml-2 text-sm text-gray-700 font-medium">All Sessions (Bulk Print)</label>
                     </div>
                     <div class="flex items-center">
-                        <input type="radio" id="filter-session" name="report-filter" value="session" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
+                        <!-- V81: Specific Session is now default -->
+                        <input type="radio" id="filter-session" name="report-filter" value="session" checked class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
                         <label for="filter-session" class="ml-2 text-sm text-gray-700 font-medium">Specific Session</label>
                     </div>
                 </div>
                 
                 <!-- Session Dropdown (Initially Hidden) -->
-                <div id="reports-session-dropdown-container" class="hidden">
+                <div id="reports-session-dropdown-container" class="">
                     <select id="reports-session-select" class="block w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm">
                         <option value="">-- Select a Session --</option>
                     </select>
@@ -1259,7 +1260,7 @@
             
     </py-script>
 
-    <!-- *** JAVASCRIPT FOR ALL UI (V74) *** -->
+    <!-- *** JAVASCRIPT FOR ALL UI (V80) *** -->
     <script>
         // --- Global localStorage Key ---
         const ROOM_CONFIG_KEY = 'examRoomConfig';
@@ -1363,11 +1364,11 @@
         const reportsSessionSelect = document.getElementById('reports-session-select');
 
 
-        // --- V70 FIX: Aggressive Key Cleaning Function (Fixes 1st/Last course) ---
+        // --- V81 FIX: Aggressive Key Cleaning Function (Fixes 1st/Last course) ---
         function cleanCourseKey(courseName) {
             if (typeof courseName !== 'string') return '';
-            // V74 FIX: Target non-standard whitespace and control chars more aggressively (including Unicode non-breaking space)
-            let cleaned = courseName.replace(/[\ufeff\u00A0]/g, ' ').toUpperCase(); 
+            // Remove all non-standard chars (including BOM, non-breaking spaces, and control chars)
+            let cleaned = courseName.replace(/[\ufeff\u00A0\u200B\u200C\u200D\u200E\u200F\uFEFF]/g, ' ').toUpperCase(); 
             // Remove ALL non-alphanumeric chars (except spaces, - ( ) [ ] / & , ; .)
             cleaned = cleaned.replace(/[^\w\s\-\(\)\[\]\/&,;.]/g, ''); 
             // Replace multiple spaces with one, then trim
@@ -2519,8 +2520,11 @@
                 
                 // V68: Ensure report filters are visible and default set
                 reportFilterSection.classList.remove('hidden');
-                filterAllRadio.checked = true;
-                reportsSessionDropdownContainer.classList.add('hidden');
+                // V81: Set Specific Session as default
+                filterSessionRadio.checked = true;
+                reportsSessionDropdownContainer.classList.remove('hidden');
+                // Ensure the report select box defaults to today's session if found
+                reportsSessionSelect.value = defaultSession || reportsSessionSelect.options[1]?.value || "all";
 
             } catch (e) {
                 console.error("Failed to populate sessions:", e);
@@ -2632,25 +2636,29 @@
         }
         
         function renderAbsenteeList() {
+            const sessionKey = sessionSelect.value;
             currentAbsenteeListDiv.innerHTML = "";
+            
             if (currentAbsenteeList.length === 0) {
                 currentAbsenteeListDiv.innerHTML = `<em class="text-gray-500">No absentees marked for this session.</em>`;
                 return;
             }
-            
-            currentAbsenteeList.forEach(regNo => {
-                // V70 FIX: Get room details for display
-                const student = allStudentData.find(s => s['Register Number'] === regNo);
-                let roomDisplay = "";
-                if (student) {
-                    // We must perform allocation to get the Room No.
-                    const allocatedData = performRoomAllocation([student]);
-                    const room = allocatedData[0]['Room No'];
-                    const roomInfo = currentRoomConfig[room];
-                    const location = (roomInfo && roomInfo.location) ? `(${roomInfo.location})` : "";
-                    roomDisplay = `${room} ${location}`;
-                }
 
+            // V81 FIX: Allocate rooms for the entire session first to get correct room numbers
+            const [date, time] = sessionKey.split(' | ');
+            const sessionStudents = allStudentData.filter(s => s.Date === date && s.Time === time);
+            const allocatedSessionData = performRoomAllocation(sessionStudents);
+            const allocatedMap = allocatedSessionData.reduce((map, s) => {
+                map[s['Register Number']] = s['Room No'];
+                return map;
+            }, {});
+
+            currentAbsenteeList.forEach(regNo => {
+                const room = allocatedMap[regNo] || 'N/A'; // Get the correct room from the map
+                const roomInfo = currentRoomConfig[room];
+                const location = (roomInfo && roomInfo.location) ? `(${roomInfo.location})` : "";
+                const roomDisplay = `${room} ${location}`;
+                
                 const item = document.createElement('div');
                 item.className = 'flex justify-between items-center p-2 bg-white border border-gray-200 rounded';
                 item.innerHTML = `
@@ -2794,7 +2802,7 @@
             let saveCount = 0;
             
             qpInputs.forEach(input => {
-                // V64 FIX: The data-course attribute is already clean, so use it as the key
+                // V74 FIX: The data-course attribute is already clean, so use it as the key
                 const courseName = input.dataset.course; 
                 const qpCode = input.value.trim();
 
@@ -2817,7 +2825,7 @@
         // V62: Input listener now just updates map and displays pending status
         qpCodeContainer.addEventListener('input', (e) => {
             if (e.target.classList.contains('qp-code-input')) {
-                // V64 FIX: Use the clean key from data-course
+                // V74 FIX: Use the clean key from data-course
                 const courseName = e.target.dataset.course; 
                 const qpCode = e.target.value.trim();
                 
