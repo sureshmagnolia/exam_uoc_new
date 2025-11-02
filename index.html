@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nominal Roll Extractor (V8)</title>
+    <title>Nominal Roll Extractor (V10)</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -78,6 +78,7 @@
             }
             h1 { font-size: 16pt; font-weight: bold; margin-bottom: 0.5rem; }
             h2 { font-size: 14pt; font-weight: bold; margin-bottom: 1rem; }
+            h3 { font-size: 12pt; font-weight: bold; margin-bottom: 1rem; }
 
             .course-summary {
                 font-size: 11pt;
@@ -130,6 +131,12 @@
             .reg-col { width: 20%; }
             .name-col { width: 35%; }
             .signature-col { width: 10%; } 
+
+            /* --- NEW: Question Paper Report Table Styles --- */
+            .q-paper-table .sl-col { width: 10%; }
+            .q-paper-table .course-col { width: 70%; }
+            .q-paper-table .count-col { width: 20%; }
+            .q-paper-table tfoot td { font-weight: bold; }
         }
         /* --- END PRINT STYLES --- */
 
@@ -152,6 +159,12 @@
         }
         .print-page h2 {
             font-size: 14pt;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        .print-page h3 {
+            font-size: 12pt;
             font-weight: bold;
             text-align: center;
             margin-bottom: 1rem;
@@ -184,6 +197,12 @@
         .print-page .name-col { width: 35%; }
         .print-page .signature-col { width: 10%; } 
         
+        /* --- NEW: Question Paper Report Table Styles --- */
+        .print-page .q-paper-table .sl-col { width: 10%; }
+        .print-page .q-paper-table .course-col { width: 70%; }
+        .print-page .q-paper-table .count-col { width: 20%; }
+        .print-page .q-paper-table tfoot td { font-weight: bold; }
+        
         .invigilator-footer {
             margin-top: 2rem;
             padding-top: 1rem;
@@ -215,7 +234,7 @@
         packages = ["pandas", "pdfplumber==0.7.1"]
     </py-config>
     
-    <!-- *** NEW: Main Navigation Bar *** -->
+    <!-- *** Main Navigation Bar *** -->
     <nav id="main-nav" class="bg-gray-800 text-white p-4 sticky top-0 z-50">
         <div class="container max-w-2xl mx-auto flex gap-4">
             <button id="nav-extractor" class="nav-button nav-button-active">Main Extractor</button>
@@ -224,14 +243,15 @@
         </div>
     </nav>
 
-    <!-- *** RENAMED: This is now the "Extractor" View *** -->
+    <!-- *** "Extractor" View *** -->
     <div id="view-extractor" class="container max-w-2xl mx-auto p-4 min-h-screen" style="display: block;">
         <div class="bg-white p-8 rounded-lg shadow-xl w-full">
             
             <header class="mb-6">
-                <h1 class="text-3xl font-bold text-gray-800">Nominal Roll Extractor (V8)</h1>
+                <h1 class="text-3xl font-bold text-gray-800">Nominal Roll Extractor (V10)</h1>
                 <p class="text-gray-600 mt-2">
-                    Upload multiple Nominal Roll PDFs at once to extract all student data, assign rooms, and print unified reports.
+                    Upload multiple Nominal Roll PDFs at once, assign to rooms based on
+                    <span class="font-medium text-indigo-600">custom capacities</span>, and print reports.
                 </p>
             </header>
 
@@ -239,11 +259,12 @@
             <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-md mb-6">
                 <h4 class="font-semibold text-gray-800">How to Use:</h4>
                 <ol class="list-decimal list-inside text-sm text-gray-700 mt-2 space-y-1">
+                    <li>(First Time) Go to **Room Settings** and check capacities. Save if needed.</li>
                     <li>Click 'Select PDF Files' and choose 1 or 100+ PDF files.</li>
-                    <li>Click 'Run Batch Extraction'.</li>
-                    <li>Wait for the log to process all files (e.g., "Processing file 1/100...").</li>
+                    <li>Click 'Run Batch Extraction'. This now uses your saved room settings.</li>
                     <li>Click 'Download Combined_Nominal_Roll.csv' for all data.</li>
-                    <li>Click 'Generate Room-wise Report' to create seating lists below.</li>
+                    <li>Click 'Generate Room-wise Report' for seating lists.</li>
+                    <li>Go to **Reports** to generate the "Question Paper Count" report.</li>
                 </ol>
             </div>
             <!-- END HOW TO USE SECTION -->
@@ -255,8 +276,9 @@
                     <input type="file" id="pdf-file" accept=".pdf" multiple class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
                 </div>
                 
+                <!-- *** CHANGED: py-click now points to the JS bridge function *** -->
                 <button id="run-button" 
-                        py-click="run_extraction" 
+                        py-click="start_extraction" 
                         class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-indigo-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50">
                     <span id="spinner" class="loader-spin -ml-1 mr-3 h-5 w-5 text-white hidden"></span>
                     <span id="button-text">2. Run Batch Extraction</span>
@@ -271,9 +293,6 @@
                 </div>
             </div>
 
-            <!-- Hidden data store for JSON -->
-            <div id="json-data-store" class="hidden"></div>
-            
             <div id="download-area" class="mt-6 space-y-3">
                 <div id="csv-download-container"></div>
                 
@@ -297,48 +316,40 @@
         </div>
     </div>
     
-    <!-- *** NEW: "Room Settings" View (Hidden) *** -->
+    <!-- *** "Room Settings" View (Functional) *** -->
     <div id="view-settings" class="container max-w-2xl mx-auto p-4 min-h-screen hidden">
         <div class="bg-white p-8 rounded-lg shadow-xl w-full">
             <h1 class="text-3xl font-bold text-gray-800 mb-6">Room Capacity Settings</h1>
             <p class="text-gray-600 mb-4">
-                Here you can define the number of students that can be seated in each room.
-                This will override the default of 30 students per room.
+                Define the number of students per room. This list is automatically saved to your browser.
+                The Python script will use this list in order, from top to bottom, for allocation.
             </p>
-            <p class="text-gray-600 mb-4">
-                (Functionality to be added in V9)
-            </p>
-            <!-- Example of what will go here -->
             <div class="space-y-4">
                 <div>
                     <label for="room-config-input" class="block text-sm font-medium text-gray-700">Room Capacities (one per line):</label>
-                    <textarea id="room-config-input" rows="10" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="Room 1: 30&#10;Room 2: 25&#10;Room 3: 30"></textarea>
+                    <textarea id="room-config-input" rows="20" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm font-mono text-sm" placeholder="Room 1: 30&#10;Room 2: 30&#10;..."></textarea>
                 </div>
-                <button id="save-room-config" class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-indigo-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700">
+                <button id="save-room-config-button" class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-indigo-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700">
                     Save Room Settings
                 </button>
+                <div id="room-config-status" class="text-sm text-green-600 font-medium text-center"></div>
             </div>
         </div>
     </div>
     
-    <!-- *** NEW: "Reports" View (Hidden) *** -->
+    <!-- *** "Reports" View (Functional) *** -->
     <div id="view-reports" class="container max-w-2xl mx-auto p-4 min-h-screen hidden">
         <div class="bg-white p-8 rounded-lg shadow-xl w-full">
             <h1 class="text-3xl font-bold text-gray-800 mb-6">Additional Reports</h1>
             <p class="text-gray-600 mb-4">
-                This section will contain new reports, such as the "Question Paper Count"
-                and "Absentee Reports".
+                Generate reports based on the last batch extraction.
             </p>
-            <p class="text-gray-600 mb-4">
-                (Functionality to be added in a future version)
-            </p>
-            <!-- Example of what will go here -->
             <div class="space-y-4">
-                <button id="generate-qpaper-report" class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-blue-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700">
+                <button id="generate-qpaper-report-button" class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-blue-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50" disabled>
                     Generate Question Paper Report
                 </button>
-                <button id="generate-absentee-report" class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-blue-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700">
-                    Generate Absentee Report
+                <button id="generate-absentee-report" class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-gray-400 py-3 px-4 text-sm font-medium text-white shadow-sm" disabled>
+                    Generate Absentee Report (Coming Soon)
                 </button>
             </div>
         </div>
@@ -352,21 +363,25 @@
     <div id="report-output-area" class="mt-6 w-full" style="display: none;">
         <!-- Report pages will be injected here -->
     </div>
+    
+    <!-- Hidden data stores for JSON -->
+    <div id="json-data-store" class="hidden"></div>
+    <div id="q-paper-data-store" class="hidden"></div>
 
 
-    <!-- The Python Script (Unchanged from V7) -->
+    <!-- *** UPDATED: The Python Script (V9 Logic) *** -->
     <py-script>
         import pandas as pd
         import pdfplumber
         import re
         import io
-        from js import document, console, URL, Blob, window
+        from js import document, console, URL, Blob, window, localStorage
         import asyncio
         import json 
         import math 
         from datetime import datetime 
         
-        # Get references to our HTML elements
+        # --- Get references to our HTML elements ---
         status_div = document.getElementById("status")
         csv_download_container = document.getElementById("csv-download-container")
         generate_report_button = document.getElementById("generate-report-button")
@@ -374,9 +389,16 @@
         report_controls = document.getElementById("report-controls")
         report_output_area = document.getElementById("report-output-area")
         
+        # --- NEW: Q-Paper Report elements ---
+        q_paper_data_store = document.getElementById("q-paper-data-store")
+        generate_qpaper_report_button = document.getElementById("generate-qpaper-report-button")
+        
         run_button = document.getElementById("run-button")
         spinner = document.getElementById("spinner")
         button_text = document.getElementById("button-text")
+        
+        # --- NEW: localStorage key ---
+        ROOM_CONFIG_KEY = 'examRoomConfig'
 
         def log_message(message):
             """Helper function to print messages to the HTML log."""
@@ -405,19 +427,46 @@
                 console.log(f"Sort Error: Could not parse Date '{row['Date']}' or Time '{row['Time']}'. Error: {e}")
                 return (datetime.min, datetime.min) 
 
-        async def run_extraction(event=None):
+        # --- NEW: Bridge function called by py-click ---
+        async def start_extraction(event=None):
             """
-            This function is called when the "Run Extraction" button is clicked.
-            (This logic is unchanged from V7 and will be modified in V9
-             to accept custom room configurations)
+            This function is the new entry point from the "Run" button.
+            It fetches the room config from localStorage and passes it to the main
+            extraction function.
             """
             try:
                 show_loader(True)
-                await asyncio.sleep(0)                                
+                await asyncio.sleep(0) # Let loader show
                 
+                # Fetch config from localStorage
+                room_config_json = localStorage.getItem(ROOM_CONFIG_KEY)
+                if not room_config_json:
+                    log_message("Warning: No room config found. Using default.")
+                    room_config_json = "{}" # Pass empty JSON
+                    
+                # Call the main logic function
+                await run_extraction_py(room_config_json)
+                
+            except Exception as e:
+                log_message(f"Critical bridge error: {e}")
+            finally:
+                # The main function will handle success/error,
+                # we just ensure the loader is hidden.
+                show_loader(False)
+
+        async def run_extraction_py(room_config_json, event=None):
+            """
+            This is the main extraction logic, now accepting room config.
+            The show_loader calls are handled by the wrapper function.
+            """
+            try:
+                # --- 1. Reset all UI elements ---
                 csv_download_container.innerHTML = ""
                 generate_report_button.classList.add("hidden")
+                generate_qpaper_report_button.classList.add("hidden")
+                generate_qpaper_report_button.disabled = True
                 json_data_store.innerHTML = ""
+                q_paper_data_store.innerHTML = ""
                 status_div.innerHTML = ""
                 report_controls.classList.add("hidden")
                 report_output_area.innerHTML = ""
@@ -430,9 +479,9 @@
                                 
                 if file_list.length == 0:
                     log_message("Error: Please select one or more PDF files first.")
-                    show_loader(False)
-                    return
+                    return # No need to toggle loader, wrapper does it
                 
+                # --- 2. PDF Processing Loop ---
                 all_exam_rows = []
                 total_files = file_list.length
                 log_message(f"Found {total_files} file(s) to process.")
@@ -457,7 +506,7 @@
                             log_message(f"File has {total_pages} pages.")
                             
                             for i, page in enumerate(pdf.pages):
-                                if (i + 1) % 10 == 0 or (i + 1) == total_pages:
+                                if (i + 1) % 5 == 0 or (i + 1) == total_pages: # Log less often
                                     log_message(f"Processing page {i + 1}/{total_pages}...")
                                     await asyncio.sleep(0) 
                                 
@@ -477,8 +526,7 @@
                                         page_text, 
                                         re.DOTALL
                                     )
-                                except Exception:
-                                    pass 
+                                except Exception: pass 
                                 
                                 if not datetime_match:
                                     try:
@@ -487,13 +535,11 @@
                                             page_text, 
                                             re.DOTALL | re.IGNORECASE
                                         )
-                                    except Exception:
-                                        pass 
+                                    except Exception: pass 
                                                         
                                 if datetime_match:
                                     new_date_val = datetime_match.group(1).strip()
-                                    if new_date_val != date_val:
-                                        date_val = new_date_val
+                                    if new_date_val != date_val: date_val = new_date_val
                                     
                                     new_time_val = datetime_match.group(2).strip()
                                     if "002:0 0PM" in new_time_val: new_time_val = "02:00 PM"
@@ -501,30 +547,23 @@
                                         new_time_val = new_time_val.replace(" ", "")
                                         if len(new_time_val) == 7: new_time_val = "0" + new_time_val[:4] + " " + new_time_val[4:]
                                         elif len(new_time_val) == 8: new_time_val = new_time_val[:5] + " " + new_time_val[5:]
-                                    if new_time_val != time_val:
-                                        time_val = new_time_val
+                                    if new_time_val != time_val: time_val = new_time_val
                                 
                                 tables = page.extract_tables()
-                                processed_rows_on_page = 0
-                                                        
+                                
                                 for table in tables:
                                     for row in table:
                                         try:
                                             if not row or not row[0]: continue
                                             if not row[0].strip().isdigit(): continue
-                                            
-                                            reg_num = "Unknown"
-                                            name = "Unknown"
-                                            
+                                            reg_num, name = "Unknown", "Unknown"
                                             for idx, cell in enumerate(row):
                                                 if not cell: continue
                                                 cell_text = cell.strip().replace('\n', ' ')
                                                 reg_match = reg_num_regex.search(cell_text)
-                                                
                                                 if reg_match:
                                                     reg_num = reg_match.group(1)
                                                     name_fragment = cell_text.replace(reg_num, '').strip()
-                                                    
                                                     if name_fragment and not reg_num_regex.search(name_fragment) and not name_fragment.isdigit():
                                                         name = name_fragment
                                                         break
@@ -537,22 +576,15 @@
                                                         if next_next_cell and next_next_cell.strip():
                                                             name = next_next_cell.strip().replace('\n', ' ')
                                                             break
-                                                    except IndexError:
-                                                        pass
-                                                    
+                                                    except IndexError: pass
                                             if reg_num != "Unknown":
-                                                formatted_row = {
-                                                    'Date': date_val.strip(),
-                                                    'Time': time_val.strip(),
-                                                    'Course': course_name.strip(),
-                                                    'Register Number': reg_num.strip(),
+                                                all_exam_rows.append({
+                                                    'Date': date_val.strip(), 'Time': time_val.strip(),
+                                                    'Course': course_name.strip(), 'Register Number': reg_num.strip(),
                                                     'Name': name.strip()
-                                                }
-                                                all_exam_rows.append(formatted_row)
-                                                processed_rows_on_page += 1
+                                                })
                                         except Exception as e:
                                             log_message(f"Warning: Skipping row. Details: {e}")
-
                     except Exception as e:
                         log_message(f"CRITICAL ERROR processing file {file_name}: {e}. Skipping this file.")
                 
@@ -560,42 +592,89 @@
 
                 if not all_exam_rows:
                     log_message("Error: No data was extracted from any file.")
-                    show_loader(False)
                     return
                 
+                # --- 3. Sorting ---
                 log_message(f"Found {len(all_exam_rows)} total candidates from {total_files} file(s).")
                 await asyncio.sleep(0)
-                
                 log_message("Sorting all entries by Date and Time...")
                 all_exam_rows_sorted = sorted(all_exam_rows, key=get_sort_key)
                 await asyncio.sleep(0)
                                 
-                log_message("Allocating room numbers...")
-                                
+                # --- 4. *** NEW ROOM ALLOCATION LOGIC (V9) *** ---
+                log_message("Allocating room numbers based on config...")
+                room_config = json.loads(room_config_json)
+                
+                room_capacities_list = []
+                if not room_config:
+                    log_message("No custom config found. Defaulting to 20 rooms of 30 students.")
+                    room_capacities_list = [30] * 20 # Default: 20 rooms of 30
+                else:
+                    # Sort keys ("Room 1", "Room 10", "Room 2") numerically
+                    sorted_room_keys = sorted(
+                        room_config.keys(), 
+                        key=lambda r: int(re.sub(r'\D', '', r) or 0) # Extract number, default 0
+                    )
+                    for key in sorted_room_keys:
+                        room_capacities_list.append(room_config[key])
+                    log_message(f"Using {len(room_capacities_list)} custom room capacities: {room_capacities_list}")
+
                 processed_rows_with_rooms = []
                 current_session_key = None
-                session_student_count = 0
-                students_per_room = 30
+                session_room_fills = {} # Tracks { ('date', 'time'): [0, 0, 0, ...] }
                 
                 for row in all_exam_rows_sorted:
                     session_key = (row['Date'], row['Time'])
-                    if session_key != current_session_key:
-                        current_session_key = session_key
-                        session_student_count = 0
-                    session_student_count += 1
-                    room_number = math.ceil(session_student_count / students_per_room)
-                    row['Room No'] = f"Room {room_number}"
+                    
+                    if session_key not in session_room_fills:
+                        session_room_fills[session_key] = [0] * len(room_capacities_list)
+                        log_message(f"Setting up {len(room_capacities_list)} rooms for session: {session_key[0]} {session_key[1]}")
+                    
+                    current_fills = session_room_fills[session_key]
+                    
+                    assigned_room_index = -1
+                    for i in range(len(current_fills)):
+                        if current_fills[i] < room_capacities_list[i]:
+                            current_fills[i] += 1
+                            assigned_room_index = i
+                            break
+                            
+                    if assigned_room_index != -1:
+                        row['Room No'] = f"Room {assigned_room_index + 1}"
+                    else:
+                        # All configured rooms are full, assign to overflow
+                        overflow_room_num = len(current_fills) + 1
+                        row['Room No'] = f"Room {overflow_room_num} (Overflow)"
+                        # Log this only once per session
+                        if current_fills[len(current_fills)-1] == room_capacities_list[len(current_fills)-1]:
+                            log_message(f"Warning: Rooms full for session {session_key}. Assigning to Overflow.")
+                            current_fills.append(1) # Add an overflow counter
+                            room_capacities_list.append(float('inf')) # And infinite capacity
+                        
                     processed_rows_with_rooms.append(row)
+                # --- END NEW ROOM ALLOCATION LOGIC ---
                 
-                log_message("Converting to DataFrame and creating CSV...")
-                
+                # --- 5. Data Export & UI Update ---
+                log_message("Converting to DataFrame...")
                 df = pd.DataFrame(processed_rows_with_rooms)
-                df = df[['Date', 'Time', 'Course', 'Register Number', 'Name', 'Room No']]
-                csv_data = df.to_csv(index=False, encoding='utf-8')
+                
+                # --- 6. *** NEW: Q-PAPER REPORT SUMMARY (V9) *** ---
+                log_message("Generating question paper summary...")
+                # Group by Date, Time, and Course, then count students
+                q_paper_df = df.groupby(['Date', 'Time', 'Course']).size().reset_index(name='Student Count')
+                q_paper_summary_json = q_paper_df.to_json(orient='records')
+                
+                # Store this data in its own hidden div
+                q_paper_data_store.innerHTML = q_paper_summary_json
+                log_message("Question paper summary generated.")
+                # --- END Q-PAPER SUMMARY ---
+
+                # --- 7. Create CSV and enable buttons ---
+                df_csv = df[['Date', 'Time', 'Course', 'Register Number', 'Name', 'Room No']]
+                csv_data = df_csv.to_csv(index=False, encoding='utf-8')
                 
                 blob = Blob.new([csv_data], {type: "text/csv;charset=utf-8"})
                 url = URL.createObjectURL(blob)
-                                
                 csv_filename = 'Combined_Nominal_Roll.csv'
                 
                 csv_download_container.innerHTML = f"""
@@ -607,19 +686,25 @@
                 
                 json_data = json.dumps(processed_rows_with_rooms)
                 json_data_store.innerHTML = json_data
+                
+                # Enable both report buttons
                 generate_report_button.classList.remove("hidden")
+                generate_qpaper_report_button.classList.remove("hidden")
+                generate_qpaper_report_button.disabled = False
                                 
                 log_message("Success! Your combined files are ready.")
             
             except Exception as e:
                 log_message(f"An error occurred: {e}")
             
-            finally:
-                show_loader(False)
+            # 'finally' with show_loader is in the wrapper function
     </py-script>
 
-    <!-- *** JAVASCRIPT FOR REPORT VIEWER (V7) + NEW NAVIGATION LOGIC *** -->
+    <!-- *** UPDATED: JAVASCRIPT FOR ALL UI (V10) *** -->
     <script>
+        // --- Global localStorage Key ---
+        const ROOM_CONFIG_KEY = 'examRoomConfig';
+
         // --- Get references to all Report elements ---
         const generateReportButton = document.getElementById('generate-report-button');
         const jsonDataStore = document.getElementById('json-data-store');
@@ -629,6 +714,26 @@
         const finalPrintButton = document.getElementById('final-print-button');
         const clearReportButton = document.getElementById('clear-report-button');
         
+        // --- Get references to all Navigation elements ---
+        const viewExtractor = document.getElementById('view-extractor');
+        const viewSettings = document.getElementById('view-settings');
+        const viewReports = document.getElementById('view-reports');
+        const navExtractor = document.getElementById('nav-extractor');
+        const navSettings = document.getElementById('nav-settings');
+        const navReports = document.getElementById('nav-reports');
+        const allNavButtons = [navExtractor, navSettings, navReports];
+        const allViews = [viewExtractor, viewSettings, viewReports];
+        
+        // --- Get references to Room Settings elements ---
+        const roomConfigInput = document.getElementById('room-config-input');
+        const saveRoomConfigButton = document.getElementById('save-room-config-button');
+        const roomConfigStatus = document.getElementById('room-config-status');
+        
+        // --- Get references to Q-Paper Report elements ---
+        const qPaperDataStore = document.getElementById('q-paper-data-store');
+        const generateQPaperReportButton = document.getElementById('generate-qpaper-report-button');
+        
+
         // --- Helper function to numerically sort room keys ---
         function getNumericSortKey(key) {
             const parts = key.split('_'); // Date_Time_Room 1
@@ -637,9 +742,8 @@
             return `${parts[0]}_${parts[1]}_${String(roomNumber).padStart(4, '0')}`;
         }
 
-        // --- 1. Event listener for the "Generate Report" button ---
+        // --- 1. Event listener for the "Generate Room-wise Report" button ---
         generateReportButton.addEventListener('click', async () => {
-            
             generateReportButton.disabled = true;
             generateReportButton.textContent = "Generating Report...";
             reportOutputArea.innerHTML = "";
@@ -681,12 +785,10 @@
                     return getNumericSortKey(a).localeCompare(getNumericSortKey(b));
                 });
 
-                // --- *** REVISED PAGE BREAK LOGIC (V7) *** ---
                 sortedSessionKeys.forEach(key => {
                     const session = sessions[key];
                     const studentsPerPage = 20;
 
-                    // --- 1. Define Common Page Elements ---
                     let courseSummaryHtml = '';
                     for (const [courseName, count] of Object.entries(session.courseCounts)) {
                         const shortCourseName = courseName.split(' ').slice(0, 4).join(' ') + (courseName.split(' ').length > 4 ? '...' : '');
@@ -714,9 +816,7 @@
                             </thead>
                             <tbody>
                     `; 
-                    
                     const tableCloseHtml = `</tbody></table>`;
-                    
                     const invigilatorFooterHtml = `
                         <div class="invigilator-footer">
                             <div><strong>Answer Booklets Received:</strong> _________________</div>
@@ -728,22 +828,14 @@
                         </div>
                     `;
 
-                    // --- 2. Helper function to generate table rows for a student list ---
                     let previousCourseName = ""; 
-                    
                     function generateTableRows(studentList) {
                         let rowsHtml = '';
                         studentList.forEach((student) => { 
                             const studentNumber = student.originalIndex + 1; 
                             const tableCourseName = student.Course.split(' ').slice(0, 4).join(' ') + (student.Course.split(' ').length > 4 ? '...' : '');
-                            
-                            let displayCourseName;
-                            if (tableCourseName === previousCourseName) {
-                                displayCourseName = '"';
-                            } else {
-                                displayCourseName = tableCourseName;
-                                previousCourseName = tableCourseName;
-                            }
+                            let displayCourseName = (tableCourseName === previousCourseName) ? '"' : tableCourseName;
+                            if (tableCourseName !== previousCourseName) previousCourseName = tableCourseName;
 
                             rowsHtml += `
                                 <tr>
@@ -758,7 +850,6 @@
                         return rowsHtml;
                     }
                     
-                    // --- 3. Slice students and add original index ---
                     const studentsWithIndex = session.students.map((student, index) => ({
                         ...student,
                         originalIndex: index 
@@ -767,38 +858,20 @@
                     const studentsPage1 = studentsWithIndex.slice(0, studentsPerPage);
                     const studentsPage2 = studentsWithIndex.slice(studentsPerPage);
 
-                    // --- 4. Build Page 1 ---
                     previousCourseName = ""; 
                     const tableRowsPage1 = generateTableRows(studentsPage1);
-                    
-                    allPagesHtml += `<div class="print-page">`;
-                    allPagesHtml += pageHeaderHtml;
-                    allPagesHtml += tableHeaderHtml;
-                    allPagesHtml += tableRowsPage1;
-                    allPagesHtml += tableCloseHtml;
-                    
-                    if (studentsPage2.length === 0) {
-                        allPagesHtml += invigilatorFooterHtml;
-                    }
-                    
+                    allPagesHtml += `<div class="print-page">${pageHeaderHtml}${tableHeaderHtml}${tableRowsPage1}${tableCloseHtml}`;
+                    if (studentsPage2.length === 0) allPagesHtml += invigilatorFooterHtml;
                     allPagesHtml += `</div>`; 
                     totalPagesGenerated++;
                     
-                    // --- 5. Build Page 2 (if necessary) ---
                     if (studentsPage2.length > 0) {
                         previousCourseName = ""; 
                         const tableRowsPage2 = generateTableRows(studentsPage2);
-                        
-                        allPagesHtml += `<div class="print-page">`;
-                        allPagesHtml += tableHeaderHtml; // NO page header
-                        allPagesHtml += tableRowsPage2;
-                        allPagesHtml += tableCloseHtml;
-                        allPagesHtml += invigilatorFooterHtml; 
-                        allPagesHtml += `</div>`; 
+                        allPagesHtml += `<div class="print-page">${tableHeaderHtml}${tableRowsPage2}${tableCloseHtml}${invigilatorFooterHtml}</div>`; 
                         totalPagesGenerated++;
                     }
                 });
-                // --- *** END REVISED LOGIC (V7) *** ---
 
                 reportOutputArea.innerHTML = allPagesHtml;
                 reportOutputArea.style.display = 'block'; 
@@ -806,10 +879,9 @@
                 reportControls.classList.remove('hidden');
 
             } catch (e) {
-                console.error("Error generating print report:", e);
+                console.error("Error generating room-wise report:", e);
                 reportStatus.textContent = "An error occurred while generating the report.";
                 reportControls.classList.remove('hidden');
-                
             } finally {
                 generateReportButton.disabled = false;
                 generateReportButton.textContent = "Generate Room-wise Report";
@@ -829,49 +901,196 @@
         });
         
         
-        // --- *** NEW: NAVIGATION VIEW-SWITCHING LOGIC *** ---
-        
-        // --- 1. Get references to all view containers ---
-        const viewExtractor = document.getElementById('view-extractor');
-        const viewSettings = document.getElementById('view-settings');
-        const viewReports = document.getElementById('view-reports');
-
-        // --- 2. Get references to all nav buttons ---
-        const navExtractor = document.getElementById('nav-extractor');
-        const navSettings = document.getElementById('nav-settings');
-        const navReports = document.getElementById('nav-reports');
-        
-        const allNavButtons = [navExtractor, navSettings, navReports];
-        const allViews = [viewExtractor, viewSettings, viewReports];
-
-        // --- 3. Add event listeners for navigation ---
-        navExtractor.addEventListener('click', () => {
-            showView(viewExtractor, navExtractor);
-        });
-        
-        navSettings.addEventListener('click', () => {
-            showView(viewSettings, navSettings);
-        });
-        
-        navReports.addEventListener('click', () => {
-            showView(viewReports, navReports);
-        });
+        // --- *** NAVIGATION VIEW-SWITCHING LOGIC *** ---
+        navExtractor.addEventListener('click', () => showView(viewExtractor, navExtractor));
+        navSettings.addEventListener('click', () => showView(viewSettings, navSettings));
+        navReports.addEventListener('click', () => showView(viewReports, navReports));
         
         function showView(viewToShow, buttonToActivate) {
-            // Hide all views
             allViews.forEach(view => view.classList.add('hidden'));
-            // Deactivate all buttons
             allNavButtons.forEach(btn => {
                 btn.classList.add('nav-button-inactive');
                 btn.classList.remove('nav-button-active');
             });
-            
-            // Show the selected view
             viewToShow.classList.remove('hidden');
-            // Activate the selected button
             buttonToActivate.classList.remove('nav-button-inactive');
             buttonToActivate.classList.add('nav-button-active');
         }
+
+        // --- *** NEW: ROOM SETTINGS LOGIC (V9) *** ---
+        
+        // Parses "Room 1: 30" into a JSON object
+        function parseRoomConfigText(text) {
+            const config = {};
+            const lines = text.split('\n');
+            lines.forEach(line => {
+                if (line.trim()) {
+                    // Be flexible with spacing: "Room 1: 25" or "Room1:25"
+                    const parts = line.split(':');
+                    if (parts.length === 2) {
+                        const roomName = parts[0].trim();
+                        const count = parseInt(parts[1].trim(), 10);
+                        if (roomName && !isNaN(count)) {
+                            config[roomName] = count;
+                        }
+                    }
+                }
+            });
+            return config;
+        }
+        
+        // Formats a JSON object { "Room 1": 30 } into text
+        function formatRoomConfigText(config) {
+            // Sort keys numerically for consistent display
+            const sortedKeys = Object.keys(config).sort((a, b) => {
+                const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
+                const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
+                return numA - numB;
+            });
+            return sortedKeys.map(key => `${key}: ${config[key]}`).join('\n');
+        }
+        
+        // Save button
+        saveRoomConfigButton.addEventListener('click', () => {
+            try {
+                const config = parseRoomConfigText(roomConfigInput.value);
+                localStorage.setItem(ROOM_CONFIG_KEY, JSON.stringify(config));
+                
+                // Re-format the text to show the user it's cleaned up
+                roomConfigInput.value = formatRoomConfigText(config);
+                
+                roomConfigStatus.textContent = "Settings saved successfully!";
+                setTimeout(() => { roomConfigStatus.textContent = ""; }, 2000);
+            } catch (e) {
+                roomConfigStatus.textContent = "Error saving settings.";
+                console.error("Error saving room config:", e);
+            }
+        });
+
+        // Load config on page load
+        function loadRoomConfig() {
+            let savedConfig = localStorage.getItem(ROOM_CONFIG_KEY);
+            let config;
+            
+            if (savedConfig) {
+                config = JSON.parse(savedConfig);
+            } else {
+                // Create a default config for the user
+                config = {};
+                for (let i = 1; i <= 20; i++) {
+                    config[`Room ${i}`] = 30;
+                }
+                localStorage.setItem(ROOM_CONFIG_KEY, JSON.stringify(config));
+            }
+            
+            roomConfigInput.value = formatRoomConfigText(config);
+        }
+        
+        // --- *** NEW: Q-PAPER REPORT LOGIC (V10 - Typo Fix) *** ---
+        generateQPaperReportButton.addEventListener('click', async () => {
+            generateQPaperReportButton.disabled = true;
+            generateQPaperReportButton.textContent = "Generating...";
+            reportOutputArea.innerHTML = "";
+            reportControls.classList.add('hidden');
+            await new Promise(resolve => setTimeout(resolve, 50));
+            
+            try {
+                const data = JSON.parse(qPaperDataStore.innerHTML);
+                if (!data || data.length === 0) {
+                    alert("No question paper data found. Please run an extraction first.");
+                    return;
+                }
+                
+                // Group data by session (Date + Time)
+                const sessions = {};
+                data.forEach(item => {
+                    const key = `${item.Date}_${item.Time}`;
+                    if (!sessions[key]) {
+                        sessions[key] = {
+                            Date: item.Date,
+                            Time: item.Time,
+                            courses: []
+                        };
+                    }
+                    sessions[key].courses.push({
+                        Course: item.Course,
+                        Count: item['Student Count']
+                    });
+                });
+                
+                let allPagesHtml = '';
+                let totalPages = 0;
+                
+                // Sort sessions (by date, then time)
+                const sortedSessionKeys = Object.keys(sessions).sort((a, b) => a.localeCompare(b));
+                
+                sortedSessionKeys.forEach(key => {
+                    const session = sessions[key];
+                    totalPages++;
+                    let totalStudentsInSession = 0;
+                    
+                    let tableRowsHtml = '';
+                    session.courses.forEach((course, index) => {
+                        totalStudentsInSession += course.Count;
+                        tableRowsHtml += `
+                            <tr>
+                                <td class="sl-col">${index + 1}</td>
+                                <td class="course-col">${course.Course}</td>
+                                <td class="count-col">${course.Count}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    // --- *** FIX (V10): Corrected </tbody> and <tfoot> placement *** ---
+                    const pageHtml = `
+                        <div class="print-page">
+                            <h1>University of Calicut</h1>
+                            <h2>Question Paper Summary</h2>
+                            <h3>${session.Date} &nbsp;|&nbsp; ${session.Time}</h3>
+                            
+                            <table class="q-paper-table">
+                                <thead>
+                                    <tr>
+                                        <th class="sl-col">Sl No</th>
+                                        <th class="course-col">Course Name</th>
+                                        <th class="count-col">Student Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${tableRowsHtml}
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td colspan="2" style="text-align: right;"><strong>Total Students</strong></td>
+                                        <td class="count-col"><strong>${totalStudentsInSession}</strong></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    `;
+                    // --- *** END FIX (V10) *** ---
+                    
+                    allPagesHtml += pageHtml;
+                });
+                
+                reportOutputArea.innerHTML = allPagesHtml;
+                reportOutputArea.style.display = 'block'; 
+                reportStatus.textContent = `Generated ${totalPages} summary pages for ${sortedSessionKeys.length} sessions.`;
+                reportControls.classList.remove('hidden');
+
+            } catch(e) {
+                console.error("Error generating Q-Paper report:", e);
+                reportStatus.textContent = "An error occurred generating the report.";
+                reportControls.classList.remove('hidden');
+            } finally {
+                generateQPaperReportButton.disabled = false;
+                generateQPaperReportButton.textContent = "Generate Question Paper Report";
+            }
+        });
+        
+        
+        // --- Run on initial page load ---
+        loadRoomConfig();
 
     </script>
 
