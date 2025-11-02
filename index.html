@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Title -->
-    <title>UOC Exam Management V13</title>
+    <title>UOC Exam Management V18</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -229,11 +229,6 @@
 </head>
 <body class="bg-gray-100 font-sans">
     
-    <!-- Define Python Environment -->
-    <py-config>
-        packages = ["pandas", "pdfplumber==0.7.1"]
-    </py-config>
-    
     <!-- *** Main Navigation Bar *** -->
     <nav id="main-nav" class="bg-gray-800 text-white p-4 sticky top-0 z-50">
         <div class="container max-w-2xl mx-auto flex gap-4">
@@ -244,12 +239,12 @@
     </nav>
 
     <!-- *** "Extractor" View *** -->
-    <div id="view-extractor" class="container max-w-2xl mx-auto p-4 min-h-screen" style="display: block;">
+    <div id="view-extractor" class="container max-w-2xl mx-auto p-4 min-h-screen">
         <div class="bg-white p-8 rounded-lg shadow-xl w-full">
             
             <header class="mb-6">
                 <!-- Updated Title -->
-                <h1 class="text-3xl font-bold text-gray-800">UOC Exam Management (V13)</h1>
+                <h1 class="text-3xl font-bold text-gray-800">UOC Exam Management (V18)</h1>
                 <p class="text-gray-600 mt-2">
                     Upload multiple Nominal Roll PDFs at once, assign to rooms based on
                     <span class="font-medium text-indigo-600">custom capacities</span>, and print reports.
@@ -262,11 +257,9 @@
                 <ol class="list-decimal list-inside text-sm text-gray-700 mt-2 space-y-1">
                     <li>Go to **Room Settings** and define capacities. Save changes.</li>
                     <li>Click 'Select PDF Files' and choose 1 or 100+ PDF files.</li>
-                    <li>Click 'Run Batch Extraction'.</li>
-                    <li>Click 'Download Combined_Nominal_Roll.csv' for raw data (no rooms).</li>
-                    <li>Click 'Generate Room-wise Report' to allocate rooms & create seating lists.</li>
-                    <li>(Optional) Click 'Download Room Allocation Report' for a CSV *with* rooms.</li>
-                    <li>Go to **Reports** to generate the "Question Paper Count" report.</li>
+                    <li>Click 'Run Batch Extraction'. Check the **Status Log** for errors.</li>
+                    <li>Click 'Download Combined_Nominal_Roll.csv' for raw data.</li>
+                    <li>Go to **Reports** to generate room seating lists and question paper counts.</li>
                 </ol>
             </div>
             <!-- END HOW TO USE SECTION -->
@@ -294,27 +287,17 @@
                 </div>
             </div>
 
+            <!-- NEW (V18): Status Log -->
+            <div class="mt-6">
+                <h3 class="text-lg font-medium text-gray-900">Status Log:</h3>
+                <div id="status-log" class="w-full h-48 p-3 mt-2 bg-gray-100 border border-gray-300 text-gray-800 text-sm font-mono rounded-md overflow-y-auto">
+                    Waiting for extraction to complete...
+                </div>
+            </div>
+
+            <!-- Download area -->
             <div id="download-area" class="mt-6 space-y-3">
                 <div id="csv-download-container"></div>
-                
-                <button id="generate-report-button" class="hidden w-full inline-flex justify-center items-center rounded-md border border-transparent bg-blue-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50">
-                    Generate Room-wise Report (with Allocation)
-                </button>
-                
-                <!-- *** Container for the Room Allocation CSV button *** -->
-                <div id="room-csv-download-container" class="mt-3"></div>
-            </div>
-            
-            <div id="report-controls" class="mt-6 p-4 bg-gray-100 rounded-lg hidden">
-                <span id="report-status" class="text-sm font-medium text-gray-700"></span>
-                <div class="flex gap-2 mt-2">
-                    <button id="final-print-button" class="inline-flex justify-center items-center rounded-md border border-transparent bg-green-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-green-700">
-                        Print Report
-                    </button>
-                    <button id="clear-report-button" class="inline-flex justify-center items-center rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
-                        Clear Report
-                    </button>
-                </div>
             </div>
             
         </div>
@@ -346,12 +329,17 @@
         <div class="bg-white p-8 rounded-lg shadow-xl w-full">
             <h1 class="text-3xl font-bold text-gray-800 mb-6">Additional Reports</h1>
             <p class="text-gray-600 mb-4">
-                Generate reports based on the last batch extraction.
+                Generate reports based on the last batch extraction. (Buttons are enabled after extraction.)
             </p>
             <div class="space-y-4">
+                <button id="generate-report-button" class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-blue-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50" disabled>
+                    Generate Room-wise Seating Report
+                </button>
+
                 <button id="generate-qpaper-report-button" class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-blue-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50" disabled>
                     Generate Question Paper Report
                 </button>
+                
                 <button id="generate-absentee-report" class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-gray-400 py-3 px-4 text-sm font-medium text-white shadow-sm" disabled>
                     Generate Absentee Report (Coming Soon)
                 </button>
@@ -360,10 +348,22 @@
     </div>
 
 
-    <!-- 
-      The Report Output Area is now OUTSIDE all main view containers
-      so it can be displayed for printing regardless of the current view.
-    -->
+    <!-- *** Report Controls *** -->
+    <div id="report-controls" class="container max-w-2xl mx-auto p-4 bg-gray-100 rounded-lg hidden">
+        <span id="report-status" class="text-sm font-medium text-gray-700"></span>
+        <div class="flex flex-wrap gap-2 mt-2">
+            <button id="final-print-button" class="flex-1 inline-flex justify-center items-center rounded-md border border-transparent bg-green-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-green-700">
+                Print Report
+            </button>
+            <button id="clear-report-button" class="flex-1 inline-flex justify-center items-center rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
+                Clear Report
+            </button>
+            <div id="room-csv-download-container" class="w-full mt-2"></div>
+        </div>
+    </div>
+
+
+    <!-- *** Report Output Area *** -->
     <div id="report-output-area" class="mt-6 w-full" style="display: none;">
         <!-- Report pages will be injected here -->
     </div>
@@ -372,8 +372,15 @@
     <div id="json-data-store" class="hidden"></div>
     <div id="q-paper-data-store" class="hidden"></div>
 
+    <!-- *** REMOVED (V18): Error/Success Modal *** -->
 
-    <!-- *** UPDATED: The Python Script (V11 Logic - No Allocation) *** -->
+
+    <!-- Define Python Environment -->
+    <py-config>
+        packages = ["pandas", "pdfplumber==0.7.1"]
+    </py-config>
+    
+    <!-- *** UPDATED: Python Script (V18 - New Status Log) *** -->
     <py-script>
         import pandas as pd
         import pdfplumber
@@ -387,6 +394,8 @@
         
         # --- Get references to our HTML elements ---
         status_div = document.getElementById("status")
+        status_log_div = document.getElementById("status-log") # NEW (V18)
+        
         csv_download_container = document.getElementById("csv-download-container")
         generate_report_button = document.getElementById("generate-report-button")
         json_data_store = document.getElementById("json-data-store")
@@ -403,10 +412,27 @@
         ROOM_CONFIG_KEY = 'examRoomConfig'
 
         def log_message(message):
-            """Helper function to print messages to the HTML log."""
-            console.log(message)
+            """Helper function to print messages to the HTML (Processing) log."""
+            console.log(f"Process Log: {message}")
             status_div.innerHTML += f'<p class="mb-1">&gt; {message}</p>'
             status_div.scrollTop = status_div.scrollHeight
+
+        # NEW (V18): Logs to the new Status Log window
+        def log_status(message, is_error=False, file_name=None, page=None):
+            """Helper function to print messages to the HTML Status log."""
+            console.log(f"Status Log: {message}")
+            color = "text-red-600" if is_error else "text-green-700"
+            
+            prefix = ""
+            if file_name:
+                prefix += f"<strong>{file_name}</strong>"
+            if page:
+                prefix += f" (Page: {page})"
+            if prefix:
+                prefix += ": "
+
+            status_log_div.innerHTML += f'<p class="mb-1 {color}">&gt; {prefix}{message}</p>'
+            status_log_div.scrollTop = status_log_div.scrollHeight
 
         def show_loader(is_loading):
             """Shows or hides the loader and updates button text."""
@@ -434,7 +460,6 @@
             """
             This function is the entry point from the "Run" button.
             It calls the main extraction function.
-            Room config is no longer needed here.
             """
             try:
                 show_loader(True)
@@ -451,17 +476,18 @@
         async def run_extraction_py(event=None):
             """
             This is the main extraction logic.
-            It no longer does room allocation.
+            It now logs errors to the status-log div.
             """
+            errors_list = [] # Still used to count errors
             try:
                 # --- 1. Reset all UI elements ---
                 csv_download_container.innerHTML = ""
-                generate_report_button.classList.add("hidden")
-                generate_qpaper_report_button.classList.add("hidden")
+                generate_report_button.disabled = True
                 generate_qpaper_report_button.disabled = True
                 json_data_store.innerHTML = ""
                 q_paper_data_store.innerHTML = ""
                 status_div.innerHTML = ""
+                status_log_div.innerHTML = "Waiting for extraction to complete..." # NEW (V18)
                 report_controls.classList.add("hidden")
                 report_output_area.innerHTML = ""
                 report_output_area.style.display = 'none'
@@ -473,7 +499,9 @@
                                 
                 if file_list.length == 0:
                     log_message("Error: Please select one or more PDF files first.")
-                    return
+                    log_status("Error: Please select one or more PDF files first.", is_error=True) # NEW (V18)
+                    errors_list.append("No files selected") # Add to error count
+                    return # Stop execution
                 
                 # --- 2. PDF Processing Loop ---
                 all_exam_rows = []
@@ -516,7 +544,7 @@
                                 datetime_match = None
                                 try:
                                     datetime_match = re.search(
-                                        r'Date of Examination.*?(\d{2}\.\d{2}\.\d{4})\s*(\d{1,2}:\d{2}\s*PM|002:0 0PM)', 
+                                        r'Date of Examination.*?(\d{2}\.\d{2}\d{4})\s*(\d{1,2}:\d{2}\s*PM|002:0 0PM)', 
                                         page_text, 
                                         re.DOTALL
                                     )
@@ -578,15 +606,21 @@
                                                     'Name': name.strip()
                                                 })
                                         except Exception as e:
-                                            log_message(f"Warning: Skipping row. Details: {e}")
+                                            error_msg = f"Skipping row. Details: {e}"
+                                            log_message(f"Warning: {error_msg}")
+                                            log_status(error_msg, is_error=True, file_name=file_name, page=i+1) # NEW (V18)
+                                            errors_list.append(error_msg) # Add to error count
                     except Exception as e:
-                        log_message(f"CRITICAL ERROR processing file {file_name}: {e}. Skipping this file.")
+                        error_msg = f"CRITICAL ERROR processing file. Skipping this file. Details: {e}"
+                        log_message(error_msg)
+                        log_status(error_msg, is_error=True, file_name=file_name, page="N/A") # NEW (V18)
+                        errors_list.append(error_msg) # Add to error count
                 
                 log_message("--- Batch processing complete. ---")
 
                 if not all_exam_rows:
                     log_message("Error: No data was extracted from any file.")
-                    return
+                    return # Stop execution
                 
                 # --- 3. Sorting ---
                 log_message(f"Found {len(all_exam_rows)} total candidates from {total_files} file(s).")
@@ -595,21 +629,18 @@
                 all_exam_rows_sorted = sorted(all_exam_rows, key=get_sort_key)
                 await asyncio.sleep(0)
                                 
-                # --- 4. ROOM ALLOCATION LOGIC REMOVED (V11) ---
                 log_message("Data sorting complete.")
                 
                 # --- 5. Data Export & UI Update ---
                 log_message("Converting to DataFrame...")
                 df = pd.DataFrame(all_exam_rows_sorted)
                 
-                # --- 6. Q-PAPER REPORT SUMMARY (V11) ---
+                # --- 6. Q-PAPER REPORT SUMMARY ---
                 log_message("Generating question paper summary...")
                 q_paper_df = df.groupby(['Date', 'Time', 'Course']).size().reset_index(name='Student Count')
                 q_paper_summary_json = q_paper_df.to_json(orient='records')
-                
                 q_paper_data_store.innerHTML = q_paper_summary_json
                 log_message("Question paper summary generated.")
-                # --- END Q-PAPER SUMMARY ---
 
                 # --- 7. Create CSV and enable buttons ---
                 df_csv = df[['Date', 'Time', 'Course', 'Register Number', 'Name']]
@@ -629,19 +660,27 @@
                 json_data = json.dumps(all_exam_rows_sorted)
                 json_data_store.innerHTML = json_data
                 
-                # Enable both report buttons
-                generate_report_button.classList.remove("hidden")
-                generate_qpaper_report_button.classList.remove("hidden")
+                generate_report_button.disabled = False
                 generate_qpaper_report_button.disabled = False
                                 
                 log_message("Success! Your combined files are ready.")
             
             except Exception as e:
-                log_message(f"An error occurred: {e}")
+                error_msg = f"An error occurred: {e}"
+                log_message(error_msg)
+                log_status(error_msg, is_error=True, file_name="Application", page="N/A") # NEW (V18)
+                errors_list.append(error_msg) # Add to error count
+            finally:
+                # --- NEW (V18): Log final status message ---
+                if not errors_list:
+                    if file_list.length > 0: # Only show success if files were processed
+                        log_status("Success: All files processed with no errors.", is_error=False)
+                else:
+                    log_status(f"Completed with {len(errors_list)} errors/warnings. See details above.", is_error=True)
             
     </py-script>
 
-    <!-- *** UPDATED: JAVASCRIPT FOR ALL UI (V13 - Storage Read Fix) *** -->
+    <!-- *** UPDATED: JAVASCRIPT FOR ALL UI (V18 - Modal Removed) *** -->
     <script>
         // --- Global localStorage Key ---
         const ROOM_CONFIG_KEY = 'examRoomConfig';
@@ -678,6 +717,8 @@
         const qPaperDataStore = document.getElementById('q-paper-data-store');
         const generateQPaperReportButton = document.getElementById('generate-qpaper-report-button');
         
+        // --- REMOVED (V18): Modal elements ---
+
 
         // --- Helper function to numerically sort room keys ---
         function getNumericSortKey(key) {
@@ -687,7 +728,7 @@
             return `${parts[0]}_${parts[1]}_${String(roomNumber).padStart(4, '0')}`;
         }
         
-        // --- (V11): Room config parsing functions ---
+        // --- Room config parsing functions ---
         function parseRoomConfigText(text) {
             const config = {};
             const lines = text.split('\n');
@@ -715,31 +756,25 @@
             return sortedKeys.map(key => `${key}: ${config[key]}`).join('\n');
         }
         
-        // --- *** (V13) FIXED Room Capacity Loading Function *** ---
+        // --- Room Capacity Loading Function ---
         function getRoomCapacitiesFromStorage() {
-            
-            // Read the JSON STRING from local storage
             let savedConfigJson = localStorage.getItem(ROOM_CONFIG_KEY) || "{}"; 
             let roomConfig;
-
             try {
-                // Parse the JSON string into an object
                 roomConfig = JSON.parse(savedConfigJson);
             } catch (e) {
                 console.error("Error parsing room config from localStorage:", e);
-                roomConfig = {}; // Default to empty on error
+                roomConfig = {};
             }
 
             let roomNames = [];
             let roomCapacities = [];
             
             if (Object.keys(roomConfig).length === 0) {
-                // Default if no config
                 console.log("Using default room config (20 rooms of 30)");
                 roomNames = Array.from({length: 20}, (_, i) => `Room ${i + 1}`);
                 roomCapacities = Array(20).fill(30);
             } else {
-                // Use the loaded config
                 console.log("Using saved room config:", roomConfig);
                 const sortedRoomKeys = Object.keys(roomConfig).sort((a, b) => {
                     const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
@@ -751,96 +786,80 @@
             }
             return { roomNames, roomCapacities };
         }
-        // --- *** END V13 FIX *** ---
 
 
         // --- 1. Event listener for the "Generate Room-wise Report" button ---
-        // --- (V12) Allocation Logic (Now uses fixed V13 getter) ---
         generateReportButton.addEventListener('click', async () => {
             
             generateReportButton.disabled = true;
             generateReportButton.textContent = "Allocating Rooms & Generating Report...";
             reportOutputArea.innerHTML = "";
             reportControls.classList.add('hidden');
-            roomCsvDownloadContainer.innerHTML = ""; // Clear old CSV button
-            lastGeneratedRoomData = []; // Clear old data
+            roomCsvDownloadContainer.innerHTML = "";
+            lastGeneratedRoomData = [];
             await new Promise(resolve => setTimeout(resolve, 50));
 
             try {
-                // --- 1. Get RAW student data (no rooms) ---
+                // 1. Get RAW student data
                 const data = JSON.parse(jsonDataStore.innerHTML);
                 if (!data || data.length === 0) {
                     alert("No data to generate. Please run extraction first.");
                     return;
                 }
                 
-                // --- 2. Get CURRENT room capacities from localStorage ---
-                // This is the "Master List" of configured rooms.
-                // (This function is now fixed in V13)
+                // 2. Get CURRENT room capacities
                 const { roomNames: masterRoomNames, roomCapacities: masterRoomCaps } = getRoomCapacitiesFromStorage();
                 
-                // --- 3. *** Perform Room Allocation in JavaScript (V12 Logic) *** ---
+                // 3. Perform Room Allocation
                 const processed_rows_with_rooms = [];
-                const sessionRoomFills = {}; // Tracks { 'date_time': [0, 0, 0, ...] }
+                const sessionRoomFills = {};
                 const DEFAULT_OVERFLOW_CAPACITY = 30;
                 
-                // 'data' is already sorted by Python
                 for (const row of data) {
                     const sessionKey = `${row.Date}_${row.Time}`;
                     
                     if (!sessionRoomFills[sessionKey]) {
-                        // Create a fresh fill-count array for this session
-                        // based on the master list
                         sessionRoomFills[sessionKey] = new Array(masterRoomCaps.length).fill(0);
                     }
                     
                     const currentFills = sessionRoomFills[sessionKey];
                     let assignedRoomName = "";
                     
-                    // --- 3a. Try to fill configured rooms first ---
+                    // 3a. Try to fill configured rooms
                     for (let i = 0; i < masterRoomCaps.length; i++) {
                         if (currentFills[i] < masterRoomCaps[i]) {
-                            currentFills[i]++; // Add student to this room
+                            currentFills[i]++;
                             assignedRoomName = masterRoomNames[i];
                             break;
                         }
                     }
                     
-                    // --- 3b. If all configured rooms are full, create overflow ---
+                    // 3b. If all configured rooms are full, create overflow
                     if (assignedRoomName === "") {
-                        // All master rooms are full. Check for overflows.
-                        // Overflows start at index `masterRoomCaps.length`
                         let foundOverflowSpot = false;
                         for (let i = masterRoomCaps.length; i < currentFills.length; i++) {
                             if (currentFills[i] < DEFAULT_OVERFLOW_CAPACITY) {
                                 currentFills[i]++;
-                                // Overflow room names are "Room X (Overflow)"
-                                // We base 'X' on the master list length
                                 assignedRoomName = `Room ${i + 1} (Overflow)`;
                                 foundOverflowSpot = true;
                                 break;
                             }
                         }
                         
-                        // --- 3c. If no existing overflow has space, create a *new* overflow ---
+                        // 3c. If no existing overflow has space, create a *new* overflow
                         if (!foundOverflowSpot) {
-                            // Add a new counter for this new overflow room
                             currentFills.push(1); 
-                            // Assign to this new room
                             assignedRoomName = `Room ${currentFills.length} (Overflow)`;
                         }
                     }
                     
-                    // Add the new student object (with Room No) to our list
                     processed_rows_with_rooms.push({ ...row, 'Room No': assignedRoomName });
                 }
-                // --- *** End of JS Allocation (V12 Logic) *** ---
                 
-                // --- 4. Store this new data for the CSV download ---
+                // 4. Store data for CSV
                 lastGeneratedRoomData = processed_rows_with_rooms;
 
-                // --- 5. Group data for Report Generation ---
-                // (This logic is the same, but runs on the new data)
+                // 5. Group data for Report Generation
                 const sessions = {};
                 processed_rows_with_rooms.forEach(student => {
                     const key = `${student.Date}_${student.Time}_${student['Room No']}`;
@@ -869,7 +888,7 @@
                     return getNumericSortKey(a).localeCompare(getNumericSortKey(b));
                 });
 
-                // --- 6. Build the HTML report pages (Same as V10/V11) ---
+                // 6. Build the HTML report pages
                 sortedSessionKeys.forEach(key => {
                     const session = sessions[key];
                     const studentsPerPage = 20;
@@ -958,13 +977,13 @@
                     }
                 });
 
-                // --- 7. Show report and controls ---
+                // 7. Show report and controls
                 reportOutputArea.innerHTML = allPagesHtml;
                 reportOutputArea.style.display = 'block'; 
                 reportStatus.textContent = `Generated ${totalPagesGenerated} total pages for ${sortedSessionKeys.length} room sessions.`;
                 reportControls.classList.remove('hidden');
                 
-                // --- 8. Add the download button for the Room CSV ---
+                // 8. Add download button
                 roomCsvDownloadContainer.innerHTML = `
                     <button id="download-room-csv-button" class="w-full inline-flex justify-center items-center rounded-md border border-gray-300 bg-white py-3 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
                         Download Room Allocation Report (.csv)
@@ -978,7 +997,7 @@
                 reportControls.classList.remove('hidden');
             } finally {
                 generateReportButton.disabled = false;
-                generateReportButton.textContent = "Generate Room-wise Report (with Allocation)";
+                generateReportButton.textContent = "Generate Room-wise Seating Report";
             }
         });
 
@@ -988,33 +1007,32 @@
         });
 
         // --- 3. Event listener for the "Clear" button ---
-        clearReportButton.addEventListener('click', () => {
+        clearReportButton.addEventListener('click', clearReport);
+        
+        // --- Centralized logic for clearing reports ---
+        function clearReport() {
             reportOutputArea.innerHTML = "";
             reportOutputArea.style.display = 'none'; 
             reportControls.classList.add('hidden');
             roomCsvDownloadContainer.innerHTML = ""; // Clear CSV button
             lastGeneratedRoomData = []; // Clear data
-        });
+        }
         
-        // --- (V11) Function to download the room-allocated CSV ---
+        // --- Function to download the room-allocated CSV ---
         function downloadRoomCsv() {
             if (!lastGeneratedRoomData || lastGeneratedRoomData.length === 0) {
                 alert("No room data to download.");
                 return;
             }
             
-            // Define headers
             const headers = ['Date', 'Time', 'Course', 'Register Number', 'Name', 'Room No'];
-            
-            // Convert JSON to CSV string
             let csvContent = headers.join(",") + "\n";
+            
             lastGeneratedRoomData.forEach(row => {
                 const values = headers.map(header => {
                     let val = row[header] ? row[header].toString() : "";
-                    // Escape quotes by doubling them
                     val = val.replace(/"/g, '""');
-                    // If value contains a comma, wrap it in quotes
-                    if (val.includes(',') || val.S('")')) {
+                    if (val.includes(',')) {
                         val = `"${val}"`;
                     }
                     return val;
@@ -1022,13 +1040,12 @@
                 csvContent += values.join(",") + "\n";
             });
 
-            // Create blob and trigger download
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
             link.setAttribute("href", url);
             link.setAttribute("download", "Room_Allocation_Report.csv");
-            document.body.appendChild(link); // Required for Firefox
+            document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
         }
@@ -1048,19 +1065,16 @@
             viewToShow.classList.remove('hidden');
             buttonToActivate.classList.remove('nav-button-inactive');
             buttonToActivate.classList.add('nav-button-active');
+            
+            clearReport(); // Always clear reports when switching views
         }
 
         // --- ROOM SETTINGS LOGIC ---
         saveRoomConfigButton.addEventListener('click', () => {
             try {
-                // Read the raw text
                 const configText = roomConfigInput.value;
-                // Parse it into a structured object
                 const config = parseRoomConfigText(configText);
-                // Save the *structured* object as a JSON string
                 localStorage.setItem(ROOM_CONFIG_KEY, JSON.stringify(config));
-                
-                // Re-format the text in the box to be clean and sorted
                 roomConfigInput.value = formatRoomConfigText(config);
                 
                 roomConfigStatus.textContent = "Settings saved successfully!";
@@ -1076,7 +1090,6 @@
             let config;
             
             if (savedConfigJson) {
-                // --- FIX V13: Correctly parse the JSON string ---
                 try {
                     config = JSON.parse(savedConfigJson);
                 } catch (e) {
@@ -1088,7 +1101,6 @@
             }
             
             if (Object.keys(config).length === 0) {
-                // Create a default config for the user if none/empty
                 config = {};
                 for (let i = 1; i <= 20; i++) {
                     config[`Room ${i}`] = 30;
@@ -1096,17 +1108,16 @@
                 localStorage.setItem(ROOM_CONFIG_KEY, JSON.stringify(config));
             }
             
-            // Format the object into clean, sorted text for the textarea
             roomConfigInput.value = formatRoomConfigText(config);
         }
         
-        // --- Q-PAPER REPORT LOGIC (Unchanged) ---
+        // --- Q-PAPER REPORT LOGIC ---
         generateQPaperReportButton.addEventListener('click', async () => {
             generateQPaperReportButton.disabled = true;
             generateQPaperReportButton.textContent = "Generating...";
             reportOutputArea.innerHTML = "";
             reportControls.classList.add('hidden');
-            roomCsvDownloadContainer.innerHTML = ""; // Clear CSV button
+            roomCsvDownloadContainer.innerHTML = "";
             await new Promise(resolve => setTimeout(resolve, 50));
             
             try {
@@ -1197,6 +1208,8 @@
             }
         });
         
+        
+        // --- REMOVED (V18): Modal control logic ---
         
         // --- Run on initial page load ---
         loadRoomConfig();
