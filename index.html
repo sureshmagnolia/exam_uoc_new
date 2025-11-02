@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Title -->
-    <title>UOC Exam Management V79</title>
+    <title>UOC Exam Management V80</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -1427,14 +1427,12 @@
             if (Object.keys(roomConfig).length === 0) {
                 // *** (V27): Default to 30 rooms ***
                 console.log("Using default room config (30 rooms of 30)");
-                roomNames = Array.from({length: 30}, (_, i) => `Room ${i + 1}`);
-                roomCapacities = Array(30).fill(30);
-                
-                // (V28) Also update the global config to reflect this default
-                currentRoomConfig = {};
+                config = {};
                 for (let i = 1; i <= 30; i++) {
-                    currentRoomConfig[`Room ${i}`] = { capacity: 30, location: "" };
+                    config[`Room ${i}`] = { capacity: 30, location: "" };
                 }
+                localStorage.setItem(ROOM_CONFIG_KEY, JSON.stringify(config));
+                currentRoomConfig = config; // Update global var
             } else {
                 console.log("Using saved room config:", roomConfig);
                 const sortedRoomKeys = Object.keys(roomConfig).sort((a, b) => {
@@ -1625,7 +1623,7 @@
                             <div><strong>Answer Booklets Used:</strong> _________________</div>
                             <div><strong>Answer Booklets Returned (Balance):</strong> _________________</div>
                             <div class="signature">
-                                Invigilator Signature
+                                Chief Superintendent
                             </div>
                         </div>
                     `;
@@ -1780,7 +1778,7 @@
                 let allPagesHtml = '';
                 let totalPagesGenerated = 0;
                 // V77: Updated for better fit (35 per column)
-                const STUDENTS_PER_COLUMN = 50; 
+                const STUDENTS_PER_COLUMN = 35; 
                 const COLUMNS_PER_PAGE = 2; 
                 const STUDENTS_PER_PAGE = STUDENTS_PER_COLUMN * COLUMNS_PER_PAGE; 
 
@@ -2095,9 +2093,11 @@
                 
                 // Save Room Config
                 const newConfig = {};
+                // V79: Get all rows, re-read and save
                 const roomRows = roomConfigContainer.querySelectorAll('.room-row');
                 
                 roomRows.forEach(row => {
+                    // V79: Read current values (name label is the source of truth for the room key)
                     const roomName = row.querySelector('.room-name-label').textContent.replace(':', '').trim();
                     let capacity = parseInt(row.querySelector('.room-capacity-input').value, 10);
                     let location = row.querySelector('.room-location-input').value.trim();
@@ -2108,7 +2108,7 @@
                     }
                     
                     if (roomName) {
-                        // (V28) Save as an object
+                        // V79: Re-save all rooms with new sequential names and updated data
                         newConfig[roomName] = {
                             capacity: capacity,
                             location: location
@@ -2122,7 +2122,7 @@
                 roomConfigStatus.textContent = "Settings saved successfully!";
                 setTimeout(() => { roomConfigStatus.textContent = ""; }, 2000);
                 
-                // Reload the form to show normalized data (e.g., show the '30' in blank fields)
+                // V79: RE-RENDER the list to fix numbering and apply UX rules (remove button on last row only)
                 loadRoomConfig();
                 
             } catch (e) {
@@ -2766,7 +2766,7 @@
             }
 
             uniqueCoursesArray.forEach(courseName => {
-                // V64 FIX: Ensure the lookup key is always aggressively cleaned
+                // V74 FIX: Ensure the lookup key is always aggressively cleaned
                 const cleanKey = cleanCourseKey(courseName);
                 const savedCode = qpCodeMap[cleanKey] || "";
                 
