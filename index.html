@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Title -->
-    <title>UOC Exam Management V48</title>
+    <title>UOC Exam Management V49</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -313,8 +313,8 @@
     <nav id="main-nav" class="bg-gray-800 text-white p-4 sticky top-0 z-50">
         <div class="container max-w-2xl mx-auto flex justify-between items-center">
             <!-- New Title Here -->
-            <!-- V48: Title Update -->
-            <h1 class="text-lg font-bold text-white bg-red-600 px-3 py-1 rounded-md shadow-md">UOC Exam Management (V48)</h1>
+            <!-- V49: Title Update -->
+            <h1 class="text-lg font-bold text-white bg-red-600 px-3 py-1 rounded-md shadow-md">UOC Exam Management (V49)</h1>
             
             <!-- Navigation buttons on the right -->
             <div class="flex gap-4">
@@ -467,9 +467,9 @@
                     Generate Room-wise Seating Report
                 </button>
                 
-                <!-- (V29) New Button -->
+                <!-- (V49) New Title -->
                 <button id="generate-daywise-report-button" class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-blue-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50" disabled>
-                    Generate Day-wise Student List (Compact)
+                    Generate Seating Details for Candidates (Compact)
                 </button>
 
                 <button id="generate-qpaper-report-button" class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-blue-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50" disabled>
@@ -1444,11 +1444,11 @@
                         const col1Students = pageStudents.slice(0, STUDENTS_PER_COLUMN);
                         const col2Students = pageStudents.slice(STUDENTS_PER_COLUMN); // (V31) Changed to get rest of students
 
-                        // V48: Use saved college name
+                        // V48: Use saved college name & (V49) New Title
                         allPagesHtml += `
                             <div class="print-page print-page-daywise">
                                 <h1>${currentCollegeName}</h1>
-                                <h2>Day-wise Student List</h2>
+                                <h2>Seating Details for Candidates</h2>
                                 <h3>${session.Date} &nbsp;|&nbsp; ${session.Time}</h3>
                                 <div class="column-container">
                                     <div class="column">
@@ -1475,8 +1475,9 @@
                 reportStatus.textContent = "An error occurred while generating the report.";
                 reportControls.classList.remove('hidden');
             } finally {
+                // V49: New Title
                 generateDaywiseReportButton.disabled = false;
-                generateDaywiseReportButton.textContent = "Generate Day-wise Student List (Compact)";
+                generateDaywiseReportButton.textContent = "Generate Seating Details for Candidates (Compact)";
             }
         });
 
