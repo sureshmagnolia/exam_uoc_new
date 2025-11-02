@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nominal Roll Extractor (V8)</title>
+    
+    <!-- Load Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Load PyScript -->
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+
+    <!-- Custom Styles for Printing, Spinner, and Navigation -->
+    <style>
+        /* Loading Spinner Animation */
+        .loader-spin {
+            border: 4px solid #f3f3f3; /* Light grey */
+            border-top: 4px solid #3b82f6; /* Blue */
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* --- NEW: Navigation Styles --- */
+        .nav-button {
+            @apply py-2 px-3 rounded text-sm font-medium transition-colors;
+        }
+        .nav-button-active {
+            @apply bg-gray-900 text-white;
+        }
+        .nav-button-inactive {
+            @apply text-gray-300 hover:bg-gray-700 hover:text-white;
+        }
+
+
+        /* --- PRINT STYLES (FIXED) --- */
+        @media print {
+            /* Hide the main app container and all other non-report elements */
+            /* --- UPDATED: Hide nav and all views during print --- */
+            #main-nav, #view-extractor, #view-settings, #view-reports, body > py-config, body > py-script, #report-controls {
+                display: none !important; /* Be forceful */
+            }
+            
+            /* Show ONLY the report content area and ensure it's visible */
+            #report-output-area {
+                display: block !important;
+                visibility: visible !important;
+                position: static; /* Use static positioning for print flow */
+                width: 100%;
+                overflow-y: visible;
+            }
+
+            /* Make sure each page is visible and breaks correctly */
+            .print-page {
+                display: block !important;
+                visibility: visible !important;
+                page-break-after: always;
+                page-break-inside: avoid;
+                width: 100%;
+                padding: 1cm;
+                box-sizing: border-box;
+                box-shadow: none;
+                border: none;
+                margin: 0;
+            }
+            
+            /* The rest of the styles are for formatting the page */
+            h1, h2 {
+                text-align: center;
+                color: black;
+            }
+            h1 { font-size: 16pt; font-weight: bold; margin-bottom: 0.5rem; }
+            h2 { font-size: 14pt; font-weight: bold; margin-bottom: 1rem; }
+
+            .course-summary {
+                font-size: 11pt;
+                margin-bottom: 1rem;
+                padding: 0.5rem;
+                border: 1px solid #ccc;
+            }
+            
+            .invigilator-footer {
+                margin-top: 2rem;
+                padding-top: 1rem;
+                border-top: 1px solid #ccc;
+                font-size: 10pt;
+            }
+            .invigilator-footer div {
+                margin-bottom: 0.5rem;
+            }
+            .invigilator-footer .signature {
+                margin-top: 2.5rem;
+                border-top: 1px solid black;
+                width: 200px;
+                padding-top: 4px;
+                text-align: center;
+            }
+            
+            .print-page-break {
+                page-break-after: always;
+                border: 0;
+                height: 0;
+            }
+
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 9pt; 
+            }
+            th, td {
+                border: 1px solid black;
+                padding: 8px 3px; 
+                text-align: left;
+                word-wrap: break-word; 
+            }
+            th {
+                padding: 8px 3px;
+                background-color: #eee;
+            }
+            
+            .sl-col { width: 5%; }
+            .course-col { width: 30%; } 
+            .reg-col { width: 20%; }
+            .name-col { width: 35%; }
+            .signature-col { width: 10%; } 
+        }
+        /* --- END PRINT STYLES --- */
+
+        /* --- Report styles for the *viewer* (on-screen) --- */
+        .print-page {
+            background: white;
+            width: 210mm; 
+            min-height: 297mm; 
+            padding: 2cm;
+            margin: 1rem auto;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            color: black;
+            box-sizing: border-box; 
+        }
+        .print-page h1 {
+            font-size: 16pt;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 0.5rem;
+        }
+        .print-page h2 {
+            font-size: 14pt;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        .print-page .course-summary {
+            font-size: 11pt;
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+        }
+        .print-page table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 9pt;
+        }
+        .print-page th, .print-page td {
+            border: 1px solid black;
+            padding: 8px 3px;
+            text-align: left;
+            word-wrap: break-word;
+        }
+        .print-page th {
+            padding: 8px 3px;
+            background-color: #eee;
+        }
+        
+        .print-page .sl-col { width: 5%; }
+        .print-page .course-col { width: 30%; } 
+        .print-page .reg-col { width: 20%; }
+        .print-page .name-col { width: 35%; }
+        .print-page .signature-col { width: 10%; } 
+        
+        .invigilator-footer {
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid #ccc;
+            font-size: 10pt;
+        }
+        .invigilator-footer div {
+            margin-bottom: 0.5rem;
+        }
+        .invigilator-footer .signature {
+            margin-top: 2.5rem;
+            border-top: 1px solid black;
+            width: 200px;
+            padding-top: 4px;
+            text-align: center;
+        }
+
+        .print-page-break {
+            display: none;
+        }
+        /* --- END REPORT STYLES --- */
+
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    
+    <!-- Define Python Environment -->
+    <py-config>
+        packages = ["pandas", "pdfplumber==0.7.1"]
+    </py-config>
+    
+    <!-- *** NEW: Main Navigation Bar *** -->
+    <nav id="main-nav" class="bg-gray-800 text-white p-4 sticky top-0 z-50">
+        <div class="container max-w-2xl mx-auto flex gap-4">
+            <button id="nav-extractor" class="nav-button nav-button-active">Main Extractor</button>
+            <button id="nav-settings" class="nav-button nav-button-inactive">Room Settings</button>
+            <button id="nav-reports" class="nav-button nav-button-inactive">Reports</button>
+        </div>
+    </nav>
+
+    <!-- *** RENAMED: This is now the "Extractor" View *** -->
+    <div id="view-extractor" class="container max-w-2xl mx-auto p-4 min-h-screen" style="display: block;">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full">
+            
+            <header class="mb-6">
+                <h1 class="text-3xl font-bold text-gray-800">Nominal Roll Extractor (V8)</h1>
+                <p class="text-gray-600 mt-2">
+                    Upload multiple Nominal Roll PDFs at once to extract all student data, assign rooms, and print unified reports.
+                </p>
+            </header>
+
+            <!-- How to Use Instructions -->
+            <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-md mb-6">
+                <h4 class="font-semibold text-gray-800">How to Use:</h4>
+                <ol class="list-decimal list-inside text-sm text-gray-700 mt-2 space-y-1">
+                    <li>Click 'Select PDF Files' and choose 1 or 100+ PDF files.</li>
+                    <li>Click 'Run Batch Extraction'.</li>
+                    <li>Wait for the log to process all files (e.g., "Processing file 1/100...").</li>
+                    <li>Click 'Download Combined_Nominal_Roll.csv' for all data.</li>
+                    <li>Click 'Generate Room-wise Report' to create seating lists below.</li>
+                </ol>
+            </div>
+            <!-- END HOW TO USE SECTION -->
+
+            <!-- HTML Interface -->
+            <div class="space-y-4">
+                <div>
+                    <label for="pdf-file" class="block text-sm font-medium text-gray-700">1. Select PDF Files:</label>
+                    <input type="file" id="pdf-file" accept=".pdf" multiple class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
+                </div>
+                
+                <button id="run-button" 
+                        py-click="run_extraction" 
+                        class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-indigo-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50">
+                    <span id="spinner" class="loader-spin -ml-1 mr-3 h-5 w-5 text-white hidden"></span>
+                    <span id="button-text">2. Run Batch Extraction</span>
+                </button>
+            </div>
+
+            <!-- Output & Download Area -->
+            <div class="mt-6">
+                <h3 class="text-lg font-medium text-gray-900">Processing Log:</h3>
+                <div id="status" class="w-full h-48 p-3 mt-2 bg-gray-900 text-gray-200 text-sm font-mono rounded-md overflow-y-auto">
+                    Waiting for file...
+                </div>
+            </div>
+
+            <!-- Hidden data store for JSON -->
+            <div id="json-data-store" class="hidden"></div>
+            
+            <div id="download-area" class="mt-6 space-y-3">
+                <div id="csv-download-container"></div>
+                
+                <button id="generate-report-button" class="hidden w-full inline-flex justify-center items-center rounded-md border border-transparent bg-blue-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50">
+                    Generate Room-wise Report
+                </button>
+            </div>
+            
+            <div id="report-controls" class="mt-6 p-4 bg-gray-100 rounded-lg hidden">
+                <span id="report-status" class="text-sm font-medium text-gray-700"></span>
+                <div class="flex gap-2 mt-2">
+                    <button id="final-print-button" class="inline-flex justify-center items-center rounded-md border border-transparent bg-green-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-green-700">
+                        Print Report
+                    </button>
+                    <button id="clear-report-button" class="inline-flex justify-center items-center rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
+                        Clear Report
+                    </button>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+    
+    <!-- *** NEW: "Room Settings" View (Hidden) *** -->
+    <div id="view-settings" class="container max-w-2xl mx-auto p-4 min-h-screen hidden">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">Room Capacity Settings</h1>
+            <p class="text-gray-600 mb-4">
+                Here you can define the number of students that can be seated in each room.
+                This will override the default of 30 students per room.
+            </p>
+            <p class="text-gray-600 mb-4">
+                (Functionality to be added in V9)
+            </p>
+            <!-- Example of what will go here -->
+            <div class="space-y-4">
+                <div>
+                    <label for="room-config-input" class="block text-sm font-medium text-gray-700">Room Capacities (one per line):</label>
+                    <textarea id="room-config-input" rows="10" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="Room 1: 30&#10;Room 2: 25&#10;Room 3: 30"></textarea>
+                </div>
+                <button id="save-room-config" class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-indigo-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700">
+                    Save Room Settings
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- *** NEW: "Reports" View (Hidden) *** -->
+    <div id="view-reports" class="container max-w-2xl mx-auto p-4 min-h-screen hidden">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">Additional Reports</h1>
+            <p class="text-gray-600 mb-4">
+                This section will contain new reports, such as the "Question Paper Count"
+                and "Absentee Reports".
+            </p>
+            <p class="text-gray-600 mb-4">
+                (Functionality to be added in a future version)
+            </p>
+            <!-- Example of what will go here -->
+            <div class="space-y-4">
+                <button id="generate-qpaper-report" class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-blue-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700">
+                    Generate Question Paper Report
+                </button>
+                <button id="generate-absentee-report" class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-blue-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700">
+                    Generate Absentee Report
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 
+      The Report Output Area is now OUTSIDE all main view containers
+      so it can be displayed for printing regardless of the current view.
+    -->
+    <div id="report-output-area" class="mt-6 w-full" style="display: none;">
+        <!-- Report pages will be injected here -->
+    </div>
+
+
+    <!-- The Python Script (Unchanged from V7) -->
+    <py-script>
+        import pandas as pd
+        import pdfplumber
+        import re
+        import io
+        from js import document, console, URL, Blob, window
+        import asyncio
+        import json 
+        import math 
+        from datetime import datetime 
+        
+        # Get references to our HTML elements
+        status_div = document.getElementById("status")
+        csv_download_container = document.getElementById("csv-download-container")
+        generate_report_button = document.getElementById("generate-report-button")
+        json_data_store = document.getElementById("json-data-store")
+        report_controls = document.getElementById("report-controls")
+        report_output_area = document.getElementById("report-output-area")
+        
+        run_button = document.getElementById("run-button")
+        spinner = document.getElementById("spinner")
+        button_text = document.getElementById("button-text")
+
+        def log_message(message):
+            """Helper function to print messages to the HTML log."""
+            console.log(message)
+            status_div.innerHTML += f'<p class="mb-1">&gt; {message}</p>'
+            status_div.scrollTop = status_div.scrollHeight
+
+        def show_loader(is_loading):
+            """Shows or hides the loader and updates button text."""
+            if is_loading:
+                run_button.disabled = True
+                spinner.classList.remove("hidden")
+                button_text.textContent = "Processing..."
+            else:
+                run_button.disabled = False
+                spinner.classList.add("hidden")
+                button_text.textContent = "2. Run Batch Extraction"
+
+        def get_sort_key(row):
+            """Converts DD.MM.YYYY and HH:MM PM to a sortable format."""
+            try:
+                date_obj = datetime.strptime(row['Date'], '%d.%m.%Y')
+                time_obj = datetime.strptime(row['Time'], '%I:%M %p')
+                return (date_obj, time_obj)
+            except ValueError as e:
+                console.log(f"Sort Error: Could not parse Date '{row['Date']}' or Time '{row['Time']}'. Error: {e}")
+                return (datetime.min, datetime.min) 
+
+        async def run_extraction(event=None):
+            """
+            This function is called when the "Run Extraction" button is clicked.
+            (This logic is unchanged from V7 and will be modified in V9
+             to accept custom room configurations)
+            """
+            try:
+                show_loader(True)
+                await asyncio.sleep(0)                                
+                
+                csv_download_container.innerHTML = ""
+                generate_report_button.classList.add("hidden")
+                json_data_store.innerHTML = ""
+                status_div.innerHTML = ""
+                report_controls.classList.add("hidden")
+                report_output_area.innerHTML = ""
+                report_output_area.style.display = 'none'
+                
+                log_message("Starting batch extraction...")
+                
+                file_input = document.getElementById("pdf-file")
+                file_list = file_input.files
+                                
+                if file_list.length == 0:
+                    log_message("Error: Please select one or more PDF files first.")
+                    show_loader(False)
+                    return
+                
+                all_exam_rows = []
+                total_files = file_list.length
+                log_message(f"Found {total_files} file(s) to process.")
+                
+                reg_num_regex = re.compile(r'([A-Z0-9]{5,}\d{3})')
+                
+                for file_index in range(total_files):
+                    file = file_list.item(file_index)
+                    file_name = file.name
+                    log_message(f"--- Processing file {file_index + 1}/{total_files}: {file_name} ---")
+                    
+                    try:
+                        file_bytes = await file.arrayBuffer()
+                        pdf_file_obj = io.BytesIO(file_bytes.to_py())
+                        
+                        course_name = "Unknown"
+                        date_val = "Unknown"
+                        time_val = "Unknown"
+                        
+                        with pdfplumber.open(pdf_file_obj) as pdf:
+                            total_pages = len(pdf.pages)
+                            log_message(f"File has {total_pages} pages.")
+                            
+                            for i, page in enumerate(pdf.pages):
+                                if (i + 1) % 10 == 0 or (i + 1) == total_pages:
+                                    log_message(f"Processing page {i + 1}/{total_pages}...")
+                                    await asyncio.sleep(0) 
+                                
+                                page_text = page.extract_text(y_tolerance=3, x_tolerance=3)
+                                                        
+                                course_match = re.search(r'([A-Z0-9]{3,}\d{3,}.*?\[.*?syllabus\])', page_text, re.DOTALL)
+                                if course_match:
+                                    new_course_name = course_match.group(1).strip().replace('\n', ' ')
+                                    new_course_name = new_course_name.replace(' Course [', ' [')
+                                    if new_course_name != course_name:
+                                        course_name = new_course_name
+
+                                datetime_match = None
+                                try:
+                                    datetime_match = re.search(
+                                        r'Date of Examination.*?(\d{2}\.\d{2}\.\d{4})\s*(\d{1,2}:\d{2}\s*PM|002:0 0PM)', 
+                                        page_text, 
+                                        re.DOTALL
+                                    )
+                                except Exception:
+                                    pass 
+                                
+                                if not datetime_match:
+                                    try:
+                                        datetime_match = re.search(
+                                            r'Date[\s\S]{0,100}?(\d{2}\.\d{2}\.\d{4})[\s\S]{0,100}?(\d{1,2}:\d{2}\s*PM|002:0 0PM)', 
+                                            page_text, 
+                                            re.DOTALL | re.IGNORECASE
+                                        )
+                                    except Exception:
+                                        pass 
+                                                        
+                                if datetime_match:
+                                    new_date_val = datetime_match.group(1).strip()
+                                    if new_date_val != date_val:
+                                        date_val = new_date_val
+                                    
+                                    new_time_val = datetime_match.group(2).strip()
+                                    if "002:0 0PM" in new_time_val: new_time_val = "02:00 PM"
+                                    if " " not in new_time_val:
+                                        new_time_val = new_time_val.replace(" ", "")
+                                        if len(new_time_val) == 7: new_time_val = "0" + new_time_val[:4] + " " + new_time_val[4:]
+                                        elif len(new_time_val) == 8: new_time_val = new_time_val[:5] + " " + new_time_val[5:]
+                                    if new_time_val != time_val:
+                                        time_val = new_time_val
+                                
+                                tables = page.extract_tables()
+                                processed_rows_on_page = 0
+                                                        
+                                for table in tables:
+                                    for row in table:
+                                        try:
+                                            if not row or not row[0]: continue
+                                            if not row[0].strip().isdigit(): continue
+                                            
+                                            reg_num = "Unknown"
+                                            name = "Unknown"
+                                            
+                                            for idx, cell in enumerate(row):
+                                                if not cell: continue
+                                                cell_text = cell.strip().replace('\n', ' ')
+                                                reg_match = reg_num_regex.search(cell_text)
+                                                
+                                                if reg_match:
+                                                    reg_num = reg_match.group(1)
+                                                    name_fragment = cell_text.replace(reg_num, '').strip()
+                                                    
+                                                    if name_fragment and not reg_num_regex.search(name_fragment) and not name_fragment.isdigit():
+                                                        name = name_fragment
+                                                        break
+                                                    try:
+                                                        next_cell = row[idx+1]
+                                                        if next_cell and next_cell.strip():
+                                                            name = next_cell.strip().replace('\n', ' ')
+                                                            break
+                                                        next_next_cell = row[idx+2]
+                                                        if next_next_cell and next_next_cell.strip():
+                                                            name = next_next_cell.strip().replace('\n', ' ')
+                                                            break
+                                                    except IndexError:
+                                                        pass
+                                                    
+                                            if reg_num != "Unknown":
+                                                formatted_row = {
+                                                    'Date': date_val.strip(),
+                                                    'Time': time_val.strip(),
+                                                    'Course': course_name.strip(),
+                                                    'Register Number': reg_num.strip(),
+                                                    'Name': name.strip()
+                                                }
+                                                all_exam_rows.append(formatted_row)
+                                                processed_rows_on_page += 1
+                                        except Exception as e:
+                                            log_message(f"Warning: Skipping row. Details: {e}")
+
+                    except Exception as e:
+                        log_message(f"CRITICAL ERROR processing file {file_name}: {e}. Skipping this file.")
+                
+                log_message("--- Batch processing complete. ---")
+
+                if not all_exam_rows:
+                    log_message("Error: No data was extracted from any file.")
+                    show_loader(False)
+                    return
+                
+                log_message(f"Found {len(all_exam_rows)} total candidates from {total_files} file(s).")
+                await asyncio.sleep(0)
+                
+                log_message("Sorting all entries by Date and Time...")
+                all_exam_rows_sorted = sorted(all_exam_rows, key=get_sort_key)
+                await asyncio.sleep(0)
+                                
+                log_message("Allocating room numbers...")
+                                
+                processed_rows_with_rooms = []
+                current_session_key = None
+                session_student_count = 0
+                students_per_room = 30
+                
+                for row in all_exam_rows_sorted:
+                    session_key = (row['Date'], row['Time'])
+                    if session_key != current_session_key:
+                        current_session_key = session_key
+                        session_student_count = 0
+                    session_student_count += 1
+                    room_number = math.ceil(session_student_count / students_per_room)
+                    row['Room No'] = f"Room {room_number}"
+                    processed_rows_with_rooms.append(row)
+                
+                log_message("Converting to DataFrame and creating CSV...")
+                
+                df = pd.DataFrame(processed_rows_with_rooms)
+                df = df[['Date', 'Time', 'Course', 'Register Number', 'Name', 'Room No']]
+                csv_data = df.to_csv(index=False, encoding='utf-8')
+                
+                blob = Blob.new([csv_data], {type: "text/csv;charset=utf-8"})
+                url = URL.createObjectURL(blob)
+                                
+                csv_filename = 'Combined_Nominal_Roll.csv'
+                
+                csv_download_container.innerHTML = f"""
+                    <a href="{url}" download="{csv_filename}"
+                       class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-green-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                        Download {csv_filename} ({len(all_exam_rows)} rows)
+                    </a>
+                """
+                
+                json_data = json.dumps(processed_rows_with_rooms)
+                json_data_store.innerHTML = json_data
+                generate_report_button.classList.remove("hidden")
+                                
+                log_message("Success! Your combined files are ready.")
+            
+            except Exception as e:
+                log_message(f"An error occurred: {e}")
+            
+            finally:
+                show_loader(False)
+    </py-script>
+
+    <!-- *** JAVASCRIPT FOR REPORT VIEWER (V7) + NEW NAVIGATION LOGIC *** -->
+    <script>
+        // --- Get references to all Report elements ---
+        const generateReportButton = document.getElementById('generate-report-button');
+        const jsonDataStore = document.getElementById('json-data-store');
+        const reportControls = document.getElementById('report-controls');
+        const reportOutputArea = document.getElementById('report-output-area');
+        const reportStatus = document.getElementById('report-status');
+        const finalPrintButton = document.getElementById('final-print-button');
+        const clearReportButton = document.getElementById('clear-report-button');
+        
+        // --- Helper function to numerically sort room keys ---
+        function getNumericSortKey(key) {
+            const parts = key.split('_'); // Date_Time_Room 1
+            const roomPart = parts[2] || "Room 0";
+            const roomNumber = parseInt(roomPart.replace('Room ', ''), 10);
+            return `${parts[0]}_${parts[1]}_${String(roomNumber).padStart(4, '0')}`;
+        }
+
+        // --- 1. Event listener for the "Generate Report" button ---
+        generateReportButton.addEventListener('click', async () => {
+            
+            generateReportButton.disabled = true;
+            generateReportButton.textContent = "Generating Report...";
+            reportOutputArea.innerHTML = "";
+            reportControls.classList.add('hidden');
+            await new Promise(resolve => setTimeout(resolve, 50));
+
+            try {
+                const data = JSON.parse(jsonDataStore.innerHTML);
+                if (!data || data.length === 0) {
+                    alert("No data to generate. Please run extraction first.");
+                    return;
+                }
+
+                const sessions = {};
+                data.forEach(student => {
+                    const key = `${student.Date}_${student.Time}_${student['Room No']}`;
+                    if (!sessions[key]) {
+                        sessions[key] = {
+                            Date: student.Date,
+                            Time: student.Time,
+                            Room: student['Room No'],
+                            students: [],
+                            courseCounts: {}
+                        };
+                    }
+                    sessions[key].students.push(student);
+                    
+                    const course = student.Course;
+                    if (!sessions[key].courseCounts[course]) {
+                        sessions[key].courseCounts[course] = 0;
+                    }
+                    sessions[key].courseCounts[course]++;
+                });
+
+                let allPagesHtml = '';
+                let totalPagesGenerated = 0;
+                
+                const sortedSessionKeys = Object.keys(sessions).sort((a, b) => {
+                    return getNumericSortKey(a).localeCompare(getNumericSortKey(b));
+                });
+
+                // --- *** REVISED PAGE BREAK LOGIC (V7) *** ---
+                sortedSessionKeys.forEach(key => {
+                    const session = sessions[key];
+                    const studentsPerPage = 20;
+
+                    // --- 1. Define Common Page Elements ---
+                    let courseSummaryHtml = '';
+                    for (const [courseName, count] of Object.entries(session.courseCounts)) {
+                        const shortCourseName = courseName.split(' ').slice(0, 4).join(' ') + (courseName.split(' ').length > 4 ? '...' : '');
+                        courseSummaryHtml += `<div style="font-weight: bold;">${shortCourseName}: ${count} Student(s)</div>`;
+                    }
+                    
+                    const pageHeaderHtml = `
+                        <h1>University of Calicut</h1>
+                        <h2>${session.Date} &nbsp;|&nbsp; ${session.Time} &nbsp;|&nbsp; ${session.Room}</h2>
+                        <div class="course-summary">
+                            ${courseSummaryHtml}
+                        </div>
+                    `;
+                    
+                    const tableHeaderHtml = `
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th class="sl-col">Sl No</th>
+                                    <th class="course-col">Course</th>
+                                    <th class="reg-col">Register Number</th>
+                                    <th class="name-col">Name</th>
+                                    <th class="signature-col">Signature</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `; 
+                    
+                    const tableCloseHtml = `</tbody></table>`;
+                    
+                    const invigilatorFooterHtml = `
+                        <div class="invigilator-footer">
+                            <div><strong>Answer Booklets Received:</strong> _________________</div>
+                            <div><strong>Answer Booklets Used:</strong> _________________</div>
+                            <div><strong>Answer Booklets Returned (Balance):</strong> _________________</div>
+                            <div class="signature">
+                                Invigilator Signature
+                            </div>
+                        </div>
+                    `;
+
+                    // --- 2. Helper function to generate table rows for a student list ---
+                    let previousCourseName = ""; 
+                    
+                    function generateTableRows(studentList) {
+                        let rowsHtml = '';
+                        studentList.forEach((student) => { 
+                            const studentNumber = student.originalIndex + 1; 
+                            const tableCourseName = student.Course.split(' ').slice(0, 4).join(' ') + (student.Course.split(' ').length > 4 ? '...' : '');
+                            
+                            let displayCourseName;
+                            if (tableCourseName === previousCourseName) {
+                                displayCourseName = '"';
+                            } else {
+                                displayCourseName = tableCourseName;
+                                previousCourseName = tableCourseName;
+                            }
+
+                            rowsHtml += `
+                                <tr>
+                                    <td class="sl-col">${studentNumber}</td>
+                                    <td class="course-col">${displayCourseName}</td>
+                                    <td class="reg-col">${student['Register Number']}</td>
+                                    <td class="name-col">${student.Name}</td>
+                                    <td class="signature-col"></td>
+                                </tr>
+                            `;
+                        });
+                        return rowsHtml;
+                    }
+                    
+                    // --- 3. Slice students and add original index ---
+                    const studentsWithIndex = session.students.map((student, index) => ({
+                        ...student,
+                        originalIndex: index 
+                    }));
+                    
+                    const studentsPage1 = studentsWithIndex.slice(0, studentsPerPage);
+                    const studentsPage2 = studentsWithIndex.slice(studentsPerPage);
+
+                    // --- 4. Build Page 1 ---
+                    previousCourseName = ""; 
+                    const tableRowsPage1 = generateTableRows(studentsPage1);
+                    
+                    allPagesHtml += `<div class="print-page">`;
+                    allPagesHtml += pageHeaderHtml;
+                    allPagesHtml += tableHeaderHtml;
+                    allPagesHtml += tableRowsPage1;
+                    allPagesHtml += tableCloseHtml;
+                    
+                    if (studentsPage2.length === 0) {
+                        allPagesHtml += invigilatorFooterHtml;
+                    }
+                    
+                    allPagesHtml += `</div>`; 
+                    totalPagesGenerated++;
+                    
+                    // --- 5. Build Page 2 (if necessary) ---
+                    if (studentsPage2.length > 0) {
+                        previousCourseName = ""; 
+                        const tableRowsPage2 = generateTableRows(studentsPage2);
+                        
+                        allPagesHtml += `<div class="print-page">`;
+                        allPagesHtml += tableHeaderHtml; // NO page header
+                        allPagesHtml += tableRowsPage2;
+                        allPagesHtml += tableCloseHtml;
+                        allPagesHtml += invigilatorFooterHtml; 
+                        allPagesHtml += `</div>`; 
+                        totalPagesGenerated++;
+                    }
+                });
+                // --- *** END REVISED LOGIC (V7) *** ---
+
+                reportOutputArea.innerHTML = allPagesHtml;
+                reportOutputArea.style.display = 'block'; 
+                reportStatus.textContent = `Generated ${totalPagesGenerated} total pages for ${sortedSessionKeys.length} room sessions.`;
+                reportControls.classList.remove('hidden');
+
+            } catch (e) {
+                console.error("Error generating print report:", e);
+                reportStatus.textContent = "An error occurred while generating the report.";
+                reportControls.classList.remove('hidden');
+                
+            } finally {
+                generateReportButton.disabled = false;
+                generateReportButton.textContent = "Generate Room-wise Report";
+            }
+        });
+
+        // --- 2. Event listener for the "Print" button ---
+        finalPrintButton.addEventListener('click', () => {
+            window.print();
+        });
+
+        // --- 3. Event listener for the "Clear" button ---
+        clearReportButton.addEventListener('click', () => {
+            reportOutputArea.innerHTML = "";
+            reportOutputArea.style.display = 'none'; 
+            reportControls.classList.add('hidden');
+        });
+        
+        
+        // --- *** NEW: NAVIGATION VIEW-SWITCHING LOGIC *** ---
+        
+        // --- 1. Get references to all view containers ---
+        const viewExtractor = document.getElementById('view-extractor');
+        const viewSettings = document.getElementById('view-settings');
+        const viewReports = document.getElementById('view-reports');
+
+        // --- 2. Get references to all nav buttons ---
+        const navExtractor = document.getElementById('nav-extractor');
+        const navSettings = document.getElementById('nav-settings');
+        const navReports = document.getElementById('nav-reports');
+        
+        const allNavButtons = [navExtractor, navSettings, navReports];
+        const allViews = [viewExtractor, viewSettings, viewReports];
+
+        // --- 3. Add event listeners for navigation ---
+        navExtractor.addEventListener('click', () => {
+            showView(viewExtractor, navExtractor);
+        });
+        
+        navSettings.addEventListener('click', () => {
+            showView(viewSettings, navSettings);
+        });
+        
+        navReports.addEventListener('click', () => {
+            showView(viewReports, navReports);
+        });
+        
+        function showView(viewToShow, buttonToActivate) {
+            // Hide all views
+            allViews.forEach(view => view.classList.add('hidden'));
+            // Deactivate all buttons
+            allNavButtons.forEach(btn => {
+                btn.classList.add('nav-button-inactive');
+                btn.classList.remove('nav-button-active');
+            });
+            
+            // Show the selected view
+            viewToShow.classList.remove('hidden');
+            // Activate the selected button
+            buttonToActivate.classList.remove('nav-button-inactive');
+            buttonToActivate.classList.add('nav-button-active');
+        }
+
+    </script>
+
+</body>
+</html>
