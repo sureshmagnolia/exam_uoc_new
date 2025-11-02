@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Title -->
-    <title>UOC Exam Management V28</title>
+    <title>UOC Exam Management V31</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -148,6 +148,33 @@
             .q-paper-table .course-col { width: 70%; }
             .q-paper-table .count-col { width: 20%; }
             .q-paper-table tfoot td { font-weight: bold; }
+            
+            /* --- (V29) Day-wise Report Styles --- */
+            .print-page-daywise h1 { font-size: 14pt; }
+            .print-page-daywise h2 { font-size: 12pt; margin-bottom: 0.5rem; }
+            .print-page-daywise .column-container {
+                display: flex;
+                gap: 10px;
+            }
+            .print-page-daywise .column {
+                flex: 1;
+                min-width: 0; /* Prevents flex overflow */
+            }
+            .daywise-report-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 7pt; /* Small font */
+            }
+            .daywise-report-table th,
+            .daywise-report-table td {
+                border: 1px solid #999; /* Darker border for print */
+                padding: 2px;
+                text-align: left;
+                word-wrap: break-word;
+            }
+            .daywise-report-table th {
+                background: #eee;
+            }
         }
         /* --- END PRINT STYLES --- */
 
@@ -226,6 +253,34 @@
         .print-page .q-paper-table .count-col { width: 20%; }
         .print-page .q-paper-table tfoot td { font-weight: bold; }
         
+        /* --- (V29) Day-wise Report Styles --- */
+        .print-page-daywise h1 { font-size: 14pt; }
+        .print-page-daywise h2 { font-size: 12pt; margin-bottom: 0.5rem; }
+        .print-page-daywise .column-container {
+            display: flex;
+            gap: 10px;
+        }
+        .print-page-daywise .column {
+            flex: 1;
+            min-width: 0; /* Prevents flex overflow */
+        }
+        .daywise-report-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 7pt; /* Small font */
+            table-layout: fixed; /* Helps with column widths */
+        }
+        .daywise-report-table th,
+        .daywise-report-table td {
+            border: 1px solid #ccc; /* Lighter border for screen */
+            padding: 2px;
+            text-align: left;
+            word-wrap: break-word; /* Ensure long text wraps */
+        }
+        .daywise-report-table th {
+            background: #f0f0f0;
+        }
+        
         .invigilator-footer {
             margin-top: 2rem;
             padding-top: 1rem;
@@ -252,11 +307,11 @@
 </head>
 <body class="bg-gray-100 font-sans">
     
-    <!-- *** Main Navigation Bar (V28 Style Update) *** -->
+    <!-- *** Main Navigation Bar (V29 Style Update) *** -->
     <nav id="main-nav" class="bg-gray-800 text-white p-4 sticky top-0 z-50">
         <div class="container max-w-2xl mx-auto flex justify-between items-center">
             <!-- New Title Here -->
-            <h1 class="text-lg font-bold text-white bg-red-600 px-3 py-1 rounded-md shadow-md">UOC Exam Management (V28)</h1>
+            <h1 class="text-lg font-bold text-white bg-red-600 px-3 py-1 rounded-md shadow-md">UOC Exam Management (V31)</h1>
             
             <!-- Navigation buttons on the right -->
             <div class="flex gap-4">
@@ -282,7 +337,7 @@
                     <li>Click 'Select PDF Files' and choose 1 or 100+ PDF files.</li>
                     <li>Click 'Run Batch Extraction'. Check the **Status Log** for errors.</li>
                     <li>Click 'Download Combined_Nominal_Roll.csv' for raw data.</li>
-                    <li>Go to **Reports** to generate room seating lists and question paper counts.</li>
+                    <li>Go to **Reports** to generate seating lists, day-wise lists, and question paper counts.</li>
                 </ol>
             </div>
             <!-- END HOW TO USE SECTION -->
@@ -365,7 +420,7 @@
         </div>
     </div>
     
-    <!-- *** "Reports" View (V22 Update: Title changed) *** -->
+    <!-- *** "Reports" View (V29 Update: New Button) *** -->
     <div id="view-reports" class="container max-w-2xl mx-auto p-4 min-h-screen hidden">
         <div class="bg-white p-8 rounded-lg shadow-xl w-full">
             <h1 class="text-3xl font-bold text-gray-800 mb-6">Reports</h1>
@@ -375,6 +430,11 @@
             <div class="space-y-4">
                 <button id="generate-report-button" class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-blue-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50" disabled>
                     Generate Room-wise Seating Report
+                </button>
+                
+                <!-- (V29) New Button -->
+                <button id="generate-daywise-report-button" class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-blue-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50" disabled>
+                    Generate Day-wise Student List (Compact)
                 </button>
 
                 <button id="generate-qpaper-report-button" class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-blue-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50" disabled>
@@ -419,7 +479,7 @@
         packages = ["pandas", "pdfplumber==0.7.1"]
     </py-config>
     
-    <!-- *** Python Script (V18) *** -->
+    <!-- *** Python Script (V29 Update) *** -->
     <py-script>
         import pandas as pd
         import pdfplumber
@@ -433,7 +493,7 @@
         
         # --- Get references to our HTML elements ---
         status_div = document.getElementById("status")
-        status_log_div = document.getElementById("status-log") # (V18)
+        status_log_div = document.getElementById("status-log")
         
         csv_download_container = document.getElementById("csv-download-container")
         generate_report_button = document.getElementById("generate-report-button")
@@ -443,6 +503,9 @@
         
         q_paper_data_store = document.getElementById("q-paper-data-store")
         generate_qpaper_report_button = document.getElementById("generate-qpaper-report-button")
+        
+        # (V29) Get ref to new button
+        generate_daywise_report_button = document.getElementById("generate-daywise-report-button")
         
         run_button = document.getElementById("run-button")
         spinner = document.getElementById("spinner")
@@ -456,7 +519,6 @@
             status_div.innerHTML += f'<p class="mb-1">&gt; {message}</p>'
             status_div.scrollTop = status_div.scrollHeight
 
-        # (V18): Logs to the new Status Log window
         def log_status(message, is_error=False, file_name=None, page=None):
             """Helper function to print messages to the HTML Status log."""
             console.log(f"Status Log: {message}")
@@ -523,10 +585,11 @@
                 csv_download_container.innerHTML = ""
                 generate_report_button.disabled = True
                 generate_qpaper_report_button.disabled = True
+                generate_daywise_report_button.disabled = True # (V29) Disable new button
                 json_data_store.innerHTML = ""
                 q_paper_data_store.innerHTML = ""
                 status_div.innerHTML = ""
-                status_log_div.innerHTML = "Waiting for extraction to complete..." # (V18)
+                status_log_div.innerHTML = "Waiting for extraction to complete..."
                 report_controls.classList.add("hidden")
                 report_output_area.innerHTML = ""
                 report_output_area.style.display = 'none'
@@ -538,7 +601,7 @@
                                 
                 if file_list.length == 0:
                     log_message("Error: Please select one or more PDF files first.")
-                    log_status("Error: Please select one or more PDF files first.", is_error=True) # (V18)
+                    log_status("Error: Please select one or more PDF files first.", is_error=True)
                     errors_list.append("No files selected") # Add to error count
                     return # Stop execution
                 
@@ -647,12 +710,12 @@
                                         except Exception as e:
                                             error_msg = f"Skipping row. Details: {e}"
                                             log_message(f"Warning: {e}")
-                                            log_status(error_msg, is_error=True, file_name=file_name, page=i+1) # (V18)
+                                            log_status(error_msg, is_error=True, file_name=file_name, page=i+1)
                                             errors_list.append(error_msg) # Add to error count
                     except Exception as e:
                         error_msg = f"CRITICAL ERROR processing file. Skipping this file. Details: {e}"
                         log_message(error_msg)
-                        log_status(error_msg, is_error=True, file_name=file_name, page="N/A") # (V18)
+                        log_status(error_msg, is_error=True, file_name=file_name, page="N/A")
                         errors_list.append(error_msg) # Add to error count
                 
                 log_message("--- Batch processing complete. ---")
@@ -701,13 +764,14 @@
                 
                 generate_report_button.disabled = False
                 generate_qpaper_report_button.disabled = False
+                generate_daywise_report_button.disabled = False # (V29) Enable new button
                                 
                 log_message("Success! Your combined files are ready.")
             
             except Exception as e:
                 error_msg = f"An error occurred: {e}"
                 log_message(error_msg)
-                log_status(error_msg, is_error=True, file_name="Application", page="N/A") # (V18)
+                log_status(error_msg, is_error=True, file_name="Application", page="N/A")
                 errors_list.append(error_msg) # Add to error count
             finally:
                 # (V18): Log final status message
@@ -719,7 +783,7 @@
             
     </py-script>
 
-    <!-- *** JAVASCRIPT FOR ALL UI (V28) *** -->
+    <!-- *** JAVASCRIPT FOR ALL UI (V30) *** -->
     <script>
         // --- Global localStorage Key ---
         const ROOM_CONFIG_KEY = 'examRoomConfig';
@@ -759,6 +823,10 @@
         // --- Get references to Q-Paper Report elements ---
         const qPaperDataStore = document.getElementById('q-paper-data-store');
         const generateQPaperReportButton = document.getElementById('generate-qpaper-report-button');
+        
+        // --- (V29) Get references to Day-wise Report elements ---
+        const generateDaywiseReportButton = document.getElementById('generate-daywise-report-button');
+        
         
         // --- Helper function to numerically sort room keys ---
         function getNumericSortKey(key) {
@@ -821,6 +889,60 @@
             }
             return { roomNames, roomCapacities };
         }
+        
+        // --- (V29) Central Allocation Function (to be used by multiple reports) ---
+        function performRoomAllocation(data) {
+            // 1. Get CURRENT room capacities
+            // This function also populates 'currentRoomConfig' global var
+            const { roomNames: masterRoomNames, roomCapacities: masterRoomCaps } = getRoomCapacitiesFromStorage();
+            
+            // 2. Perform Room Allocation
+            const processed_rows_with_rooms = [];
+            const sessionRoomFills = {};
+            const DEFAULT_OVERFLOW_CAPACITY = 30;
+            
+            for (const row of data) {
+                const sessionKey = `${row.Date}_${row.Time}`;
+                
+                if (!sessionRoomFills[sessionKey]) {
+                    sessionRoomFills[sessionKey] = new Array(masterRoomCaps.length).fill(0);
+                }
+                
+                const currentFills = sessionRoomFills[sessionKey];
+                let assignedRoomName = "";
+                
+                // 2a. Try to fill configured rooms
+                for (let i = 0; i < masterRoomCaps.length; i++) {
+                    if (currentFills[i] < masterRoomCaps[i]) {
+                        currentFills[i]++;
+                        assignedRoomName = masterRoomNames[i];
+                        break;
+                    }
+                }
+                
+                // 2b. If all configured rooms are full, create overflow
+                if (assignedRoomName === "") {
+                    let foundOverflowSpot = false;
+                    for (let i = masterRoomCaps.length; i < currentFills.length; i++) {
+                        if (currentFills[i] < DEFAULT_OVERFLOW_CAPACITY) {
+                            currentFills[i]++;
+                            assignedRoomName = `Room ${i + 1}`;
+                            foundOverflowSpot = true;
+                            break;
+                        }
+                    }
+                    
+                    // 2c. If no existing overflow has space, create a *new* overflow
+                    if (!foundOverflowSpot) {
+                        currentFills.push(1); 
+                        assignedRoomName = `Room ${currentFills.length}`;
+                    }
+                }
+                
+                processed_rows_with_rooms.push({ ...row, 'Room No': assignedRoomName });
+            }
+            return processed_rows_with_rooms;
+        }
 
 
         // --- 1. Event listener for the "Generate Room-wise Report" button ---
@@ -842,62 +964,13 @@
                     return;
                 }
                 
-                // 2. Get CURRENT room capacities
-                // (V28) This function now also populates 'currentRoomConfig' global var
-                const { roomNames: masterRoomNames, roomCapacities: masterRoomCaps } = getRoomCapacitiesFromStorage();
+                // 2. Perform Room Allocation (V29 - uses central function)
+                const processed_rows_with_rooms = performRoomAllocation(data);
                 
-                // 3. Perform Room Allocation
-                const processed_rows_with_rooms = [];
-                const sessionRoomFills = {};
-                const DEFAULT_OVERFLOW_CAPACITY = 30;
-                
-                for (const row of data) {
-                    const sessionKey = `${row.Date}_${row.Time}`;
-                    
-                    if (!sessionRoomFills[sessionKey]) {
-                        sessionRoomFills[sessionKey] = new Array(masterRoomCaps.length).fill(0);
-                    }
-                    
-                    const currentFills = sessionRoomFills[sessionKey];
-                    let assignedRoomName = "";
-                    
-                    // 3a. Try to fill configured rooms
-                    for (let i = 0; i < masterRoomCaps.length; i++) {
-                        if (currentFills[i] < masterRoomCaps[i]) {
-                            currentFills[i]++;
-                            assignedRoomName = masterRoomNames[i];
-                            break;
-                        }
-                    }
-                    
-                    // 3b. If all configured rooms are full, create overflow
-                    if (assignedRoomName === "") {
-                        let foundOverflowSpot = false;
-                        for (let i = masterRoomCaps.length; i < currentFills.length; i++) {
-                            if (currentFills[i] < DEFAULT_OVERFLOW_CAPACITY) {
-                                currentFills[i]++;
-                                // *** (V27) Changed overflow naming ***
-                                assignedRoomName = `Room ${i + 1}`;
-                                foundOverflowSpot = true;
-                                break;
-                            }
-                        }
-                        
-                        // 3c. If no existing overflow has space, create a *new* overflow
-                        if (!foundOverflowSpot) {
-                            currentFills.push(1); 
-                            // *** (V27) Changed overflow naming ***
-                            assignedRoomName = `Room ${currentFills.length}`;
-                        }
-                    }
-                    
-                    processed_rows_with_rooms.push({ ...row, 'Room No': assignedRoomName });
-                }
-                
-                // 4. Store data for CSV
+                // 3. Store data for CSV
                 lastGeneratedRoomData = processed_rows_with_rooms;
 
-                // 5. Group data for Report Generation
+                // 4. Group data for Report Generation
                 const sessions = {};
                 processed_rows_with_rooms.forEach(student => {
                     const key = `${student.Date}_${student.Time}_${student['Room No']}`;
@@ -926,14 +999,14 @@
                     return getNumericSortKey(a).localeCompare(getNumericSortKey(b));
                 });
 
-                // 6. Build the HTML report pages
+                // 5. Build the HTML report pages
                 sortedSessionKeys.forEach(key => {
                     const session = sessions[key];
                     const studentsPerPage = 20;
                     
                     // (V28) Get location for this room
                     const roomInfo = currentRoomConfig[session.Room];
-                    const location = roomInfo ? roomInfo.location : "";
+                    const location = (roomInfo && roomInfo.location) ? roomInfo.location : "";
                     const locationHtml = location ? `<div class="report-location-header">Location: ${location}</div>` : "";
 
                     let courseSummaryHtml = '';
@@ -1021,13 +1094,13 @@
                     }
                 });
 
-                // 7. Show report and controls
+                // 6. Show report and controls
                 reportOutputArea.innerHTML = allPagesHtml;
                 reportOutputArea.style.display = 'block'; 
                 reportStatus.textContent = `Generated ${totalPagesGenerated} total pages for ${sortedSessionKeys.length} room sessions.`;
                 reportControls.classList.remove('hidden');
                 
-                // 8. Add download button
+                // 7. Add download button
                 roomCsvDownloadContainer.innerHTML = `
                     <button id="download-room-csv-button" class="w-full inline-flex justify-center items-center rounded-md border border-gray-300 bg-white py-3 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
                         Download Room Allocation Report (.csv)
@@ -1045,12 +1118,185 @@
             }
         });
 
-        // --- 2. Event listener for the "Print" button ---
+        // --- (V29) Event listener for the "Day-wise Student List" button ---
+        generateDaywiseReportButton.addEventListener('click', async () => {
+            generateDaywiseReportButton.disabled = true;
+            generateDaywiseReportButton.textContent = "Generating...";
+            reportOutputArea.innerHTML = "";
+            reportControls.classList.add('hidden');
+            roomCsvDownloadContainer.innerHTML = "";
+            lastGeneratedRoomData = []; // This report doesn't use the room CSV
+            await new Promise(resolve => setTimeout(resolve, 50));
+
+            try {
+                // 1. Get RAW student data
+                const data = JSON.parse(jsonDataStore.innerHTML);
+                if (!data || data.length === 0) {
+                    alert("No data to generate. Please run extraction first.");
+                    return;
+                }
+                
+                // 2. Perform Room Allocation (V29 - uses central function)
+                const processed_rows_with_rooms = performRoomAllocation(data);
+
+                // 3. Group by Room to get SL No.
+                const roomSessions = {};
+                processed_rows_with_rooms.forEach(student => {
+                    const key = `${student.Date}_${student.Time}_${student['Room No']}`;
+                    if (!roomSessions[key]) {
+                        roomSessions[key] = {
+                            Date: student.Date,
+                            Time: student.Time,
+                            Room: student['Room No'],
+                            students: []
+                        };
+                    }
+                    roomSessions[key].students.push(student);
+                });
+
+                // 4. Create new flat list with SlNoInRoom
+                let flatStudentList = [];
+                Object.values(roomSessions).forEach(roomSession => {
+                    roomSession.students.forEach((student, index) => {
+                        flatStudentList.push({ 
+                            ...student, 
+                            slNoInRoom: index + 1,
+                            roomName: roomSession.Room 
+                        });
+                    });
+                });
+                
+                // 5. Sort this new list by Date, Time, Course, then Register Number
+                flatStudentList.sort((a, b) => {
+                    if (a.Date !== b.Date) return a.Date.localeCompare(b.Date);
+                    if (a.Time !== b.Time) return a.Time.localeCompare(b.Time, 'en', { numeric: true }); // Handle 10:00 AM vs 2:00 PM
+                    if (a.Course !== b.Course) return a.Course.localeCompare(b.Course);
+                    return a['Register Number'].localeCompare(b['Register Number']);
+                });
+
+                // 6. Group this sorted list by Day/Session
+                const daySessions = {};
+                flatStudentList.forEach(student => {
+                    const key = `${student.Date}_${student.Time}`;
+                    if (!daySessions[key]) {
+                        daySessions[key] = {
+                            Date: student.Date,
+                            Time: student.Time,
+                            students: []
+                        };
+                    }
+                    daySessions[key].students.push(student);
+                });
+                
+                // 7. Build the HTML
+                let allPagesHtml = '';
+                let totalPagesGenerated = 0;
+                const STUDENTS_PER_COLUMN = 120; // (V31) Adjusted for 2 columns
+                const COLUMNS_PER_PAGE = 2; // (V31) Changed from 3
+                const STUDENTS_PER_PAGE = STUDENTS_PER_COLUMN * COLUMNS_PER_PAGE; // 240
+
+                // (V30) Helper to build a table for a column, NOW WITH COURSE GROUPING
+                function buildColumnTable(studentChunk) {
+                    let rowsHtml = '';
+                    let currentCourse = ""; // Track the current course
+
+                    studentChunk.forEach(student => {
+                        // Check if the course has changed
+                        if (student.Course !== currentCourse) {
+                            currentCourse = student.Course;
+                            // Add a course heading row
+                            rowsHtml += `
+                                <tr>
+                                    <td colspan="4" style="background-color: #ddd; font-weight: bold; padding: 4px 2px; border: 1px solid #999;">
+                                        ${student.Course}
+                                    </td>
+                                </tr>
+                            `;
+                        }
+
+                        // Add the student row
+                        const roomInfo = currentRoomConfig[student.roomName];
+                        const location = (roomInfo && roomInfo.location) ? roomInfo.location : "";
+                        const roomDisplay = location ? `${student.roomName} (${location})` : student.roomName;
+
+                        rowsHtml += `
+                            <tr>
+                                <td>${student['Register Number']}</td>
+                                <td>${student.Name}</td>
+                                <td>${roomDisplay}</td>
+                                <td style="text-align: center;">${student.slNoInRoom}</td>
+                            </tr>
+                        `;
+                    });
+
+                    // (V30) Updated table header to remove Course
+                    return `
+                        <table class="daywise-report-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 25%;">Register No</th>
+                                    <th style="width: 35%;">Name</th>
+                                    <th style="width: 35%;">Room (Location)</th>
+                                    <th style="width: 5%;">Sl</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rowsHtml}</tbody>
+                        </table>
+                    `;
+                }
+
+                const sortedSessionKeys = Object.keys(daySessions).sort();
+
+                sortedSessionKeys.forEach(key => {
+                    const session = daySessions[key];
+                    
+                    for (let i = 0; i < session.students.length; i += STUDENTS_PER_PAGE) {
+                        const pageStudents = session.students.slice(i, i + STUDENTS_PER_PAGE);
+                        totalPagesGenerated++;
+                        
+                        const col1Students = pageStudents.slice(0, STUDENTS_PER_COLUMN);
+                        const col2Students = pageStudents.slice(STUDENTS_PER_COLUMN); // (V31) Changed to get rest of students
+
+                        allPagesHtml += `
+                            <div class="print-page print-page-daywise">
+                                <h1>Day-wise Student List</h1>
+                                <h2>${session.Date} &nbsp;|&nbsp; ${session.Time}</h2>
+                                <div class="column-container">
+                                    <div class="column">
+                                        ${buildColumnTable(col1Students)}
+                                    </div>
+                                    <div class="column">
+                                        ${col2Students.length > 0 ? buildColumnTable(col2Students) : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+
+                // 8. Show report and controls
+                reportOutputArea.innerHTML = allPagesHtml;
+                reportOutputArea.style.display = 'block'; 
+                reportStatus.textContent = `Generated ${totalPagesGenerated} compact pages for ${sortedSessionKeys.length} sessions.`;
+                reportControls.classList.remove('hidden');
+                roomCsvDownloadContainer.innerHTML = ""; // This report has no CSV
+
+            } catch (e) {
+                console.error("Error generating day-wise report:", e);
+                reportStatus.textContent = "An error occurred while generating the report.";
+                reportControls.classList.remove('hidden');
+            } finally {
+                generateDaywiseReportButton.disabled = false;
+                generateDaywiseReportButton.textContent = "Generate Day-wise Student List (Compact)";
+            }
+        });
+
+        // --- Event listener for the "Print" button ---
         finalPrintButton.addEventListener('click', () => {
             window.print();
         });
 
-        // --- 3. Event listener for the "Clear" button ---
+        // --- Event listener for the "Clear" button ---
         clearReportButton.addEventListener('click', clearReport);
         
         // --- Centralized logic for clearing reports ---
@@ -1339,4 +1585,6 @@
 
 </body>
 </html>
+
+
 
