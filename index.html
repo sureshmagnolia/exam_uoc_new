@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Title -->
-    <title>UOC Exam Management V82</title>
+    <title>UOC Exam Management V86</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -29,22 +29,32 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* --- Navigation Styles --- */
+        /* --- Navigation Styles (V83: Tab-based structure) --- */
         .nav-button {
-            @apply py-2 px-3 rounded text-sm font-medium transition-colors;
+            @apply py-2 px-4 rounded-t-lg text-sm font-medium transition-colors;
         }
         .nav-button-active {
-            @apply bg-gray-900 text-white;
+            /* V83: Active Tab Style */
+            @apply bg-white text-indigo-700 shadow-md;
         }
         .nav-button-inactive {
+            /* V83: Inactive Tab Style */
             @apply text-gray-300 hover:bg-gray-700 hover:text-white;
         }
 
+        /* V83: Main Nav Bar Adjustment */
+        #top-banner {
+            background-color: #4f46e5; /* Indigo-600 */
+        }
+        #main-nav-tabs {
+            background-color: #3730a3; /* Indigo-800 */
+            width: 100%;
+        }
 
         /* --- PRINT STYLES --- */
         @media print {
             /* Hide the main app container and all other non-report elements */
-            #main-nav, #view-extractor, #view-settings, #view-reports, #view-absentees, #view-qpcodes, body > py-config, body > py-script, #report-controls {
+            #main-nav, #view-extractor, #view-settings, #view-reports, #view-absentees, #view-qpcodes, #view-room-settings, body > py-config, body > py-script, #report-controls {
                 display: none !important; /* Be forceful */
             }
             
@@ -422,20 +432,21 @@
 </head>
 <body class="bg-gray-100 font-sans">
     
-    <!-- *** Main Navigation Bar (V58 Update: QP Codes) *** -->
-    <nav id="main-nav" class="bg-gray-800 text-white p-4 sticky top-0 z-50">
-        <div class="container max-w-2xl mx-auto flex justify-between items-center">
-            <!-- V60: Title Update -->
-            <h1 class="text-lg font-bold text-white bg-red-600 px-3 py-1 rounded-md shadow-md">UOC Exam Management (V81)</h1>
-            
-            <!-- Navigation buttons on the right -->
-            <div class="flex gap-4">
-                <button id="nav-extractor" class="nav-button nav-button-active">Main Extractor</button>
-                <button id="nav-settings" class="nav-button nav-button-inactive">Room Settings</button>
-                <button id="nav-qpcodes" class="nav-button nav-button-inactive">QP Codes</button>
-                <button id="nav-reports" class="nav-button nav-button-inactive">Reports</button>
-                <button id="nav-absentees" class="nav-button nav-button-inactive">Absentees</button>
-            </div>
+    <!-- *** Main Navigation Bar (V83: UPDATED STRUCTURE) *** -->
+    <nav id="main-nav" class="bg-indigo-600 text-white sticky top-0 z-50 shadow-lg">
+        <!-- V83: Top Banner (Spanning Width, Centered Title) -->
+        <div id="top-banner" class="w-full bg-indigo-700 text-center py-2">
+            <h1 class="text-xl font-extrabold tracking-wider text-white">UOC Exam Management (V85)</h1>
+        </div>
+        
+        <!-- V83: Navigation Tabs (Below Banner) -->
+        <div id="main-nav-tabs" class="container max-w-2xl mx-auto flex">
+            <button id="nav-extractor" class="nav-button nav-button-active">Main Extractor</button>
+            <button id="nav-settings" class="nav-button nav-button-inactive">Settings</button>
+            <button id="nav-room-settings" class="nav-button nav-button-inactive">Room Settings</button> 
+            <button id="nav-qpcodes" class="nav-button nav-button-inactive">QP Codes</button>
+            <button id="nav-reports" class="nav-button nav-button-inactive">Reports</button>
+            <button id="nav-absentees" class="nav-button nav-button-inactive">Absentees</button>
         </div>
     </nav>
 
@@ -523,17 +534,37 @@
         </div>
     </div>
     
-    <!-- *** "Room Settings" View (V48 - COLLEGE NAME ADDED) *** -->
+    <!-- *** "Settings" View (V82: CONSOLIDATED SETTINGS) *** -->
     <div id="view-settings" class="container max-w-2xl mx-auto p-4 min-h-screen hidden">
         <div class="bg-white p-8 rounded-lg shadow-xl w-full">
-            <h1 class="text-3xl font-bold text-gray-800 mb-6">Room Capacity Settings</h1>
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">General Settings</h1>
             
-            <!-- V48: College Name Input -->
-            <div class="mb-6">
-                <label for="college-name-input" class="block text-sm font-medium text-gray-700 mb-1">College Name (for Reports)</label>
-                <input type="text" id="college-name-input" class="block w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm" placeholder="e.g., University of Calicut">
+            <!-- General Settings (College Name & Reset) -->
+            <div class="bg-red-50 border border-red-200 p-4 rounded-lg mb-6">
+                 <h2 class="text-xl font-bold text-gray-800 mb-4 pb-2 border-b border-gray-300">
+                    College Name
+                </h2>
+                <!-- V48: College Name Input -->
+                <div class="mb-6">
+                    <label for="college-name-input" class="block text-sm font-medium text-gray-700 mb-1">College Name (for Reports)</label>
+                    <input type="text" id="college-name-input" class="block w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm" placeholder="e.g., University of Calicut">
+                </div>
+                 <h2 class="text-xl font-bold text-gray-800 mb-4 pb-2 border-b border-gray-300">
+                    Master Reset
+                </h2>
+                 <!-- V68: Master Reset Button -->
+                <button id="master-reset-button" class="w-full inline-flex justify-center items-center rounded-md border border-red-700 bg-red-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-red-700 mt-2">
+                    Master Reset: Clear ALL Local Data
+                </button>
             </div>
-            
+        </div>
+    </div>
+
+    <!-- *** "Room Settings" View (V83: SPLIT FROM SETTINGS) *** -->
+    <div id="view-room-settings" class="container max-w-2xl mx-auto p-4 min-h-screen hidden">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full">
+             <h1 class="text-3xl font-bold text-gray-800 mb-6">Room Capacity & Location</h1>
+
             <p class="text-gray-600 mb-4">
                 Define the number of students per room. This list is automatically saved to your browser.
                 If a capacity is left blank, it will default to 30 when saved.
@@ -566,11 +597,6 @@
                 </button>
                 <div id="room-config-status" class="text-sm text-green-600 font-medium text-center h-5"></div>
             </div>
-            
-            <!-- V68: Master Reset Button -->
-             <button id="master-reset-button" class="w-full inline-flex justify-center items-center rounded-md border border-red-700 bg-red-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-red-700 mt-6">
-                Master Reset: Clear ALL Local Data
-            </button>
         </div>
     </div>
     
@@ -1304,13 +1330,15 @@
         const viewQPCodes = document.getElementById('view-qpcodes'); // V58
         const viewReports = document.getElementById('view-reports');
         const viewAbsentees = document.getElementById('view-absentees'); // V56
+        const viewRoomSettings = document.getElementById('view-room-settings'); // V83
         const navExtractor = document.getElementById('nav-extractor');
         const navSettings = document.getElementById('nav-settings');
         const navQPCodes = document.getElementById('nav-qpcodes'); // V58
         const navReports = document.getElementById('nav-reports');
         const navAbsentees = document.getElementById('nav-absentees'); // V56
-        const allNavButtons = [navExtractor, navSettings, navQPCodes, navReports, navAbsentees]; // V58
-        const allViews = [viewExtractor, viewSettings, viewQPCodes, viewReports, viewAbsentees]; // V58
+        const navRoomSettings = document.getElementById('nav-room-settings'); // V83
+        const allNavButtons = [navExtractor, navSettings, navRoomSettings, navQPCodes, navReports, navAbsentees]; // V83
+        const allViews = [viewExtractor, viewSettings, viewRoomSettings, viewQPCodes, viewReports, viewAbsentees]; // V83
         
         // --- (V26) Get references to NEW Room Settings elements ---
         const collegeNameInput = document.getElementById('college-name-input'); // V48
@@ -1419,7 +1447,7 @@
                 }
             }
             
-            // (V28) Store this in the global var for report generation
+            // (V28) Store in global var for report generation
             currentRoomConfig = roomConfig; 
             
             let roomNames = [];
@@ -2068,7 +2096,9 @@
         navQPCodes.addEventListener('click', () => showView(viewQPCodes, navQPCodes)); // V58
         navReports.addEventListener('click', () => showView(viewReports, navReports));
         navAbsentees.addEventListener('click', () => showView(viewAbsentees, navAbsentees)); // V56
-        
+        // V82: New tab structure
+        document.getElementById('nav-room-settings').addEventListener('click', () => showView(document.getElementById('view-room-settings'), document.getElementById('nav-room-settings')));
+
         function showView(viewToShow, buttonToActivate) {
             allViews.forEach(view => view.classList.add('hidden'));
             allNavButtons.forEach(btn => {
@@ -2136,7 +2166,7 @@
         function loadRoomConfig() {
             // V48: Load College Name
             currentCollegeName = localStorage.getItem(COLLEGE_NAME_KEY) || "University of Calicut";
-            collegeNameInput.value = currentCollegeName;
+            if (collegeNameInput) collegeNameInput.value = currentCollegeName; // V82: Check for existence since it moved
             
             // Load Room Config
             let savedConfigJson = localStorage.getItem(ROOM_CONFIG_KEY);
@@ -2358,8 +2388,8 @@
             };
             reader.onerror = () => {
                 csvLoadStatus.textContent = "Error reading file.";
-                document.getElementById('pdf-file').disabled = false;
-                document.getElementById('run-button').disabled = false;
+                document.getElementById('pdf-file').disabled = true;
+                document.getElementById('run-button').disabled = true;
             };
             reader.readAsText(file);
         });
@@ -2798,16 +2828,16 @@
             // 1. Iterate over all visible inputs and update the global map
             const qpInputs = qpCodeContainer.querySelectorAll('.qp-code-input');
             
-            // V63 FIX: Iterating over all inputs and ensuring keys are clean
+            // V83 FIX: Use a robust iteration method to ensure all inputs, including first/last, are processed
             let saveCount = 0;
             
             qpInputs.forEach(input => {
                 // V74 FIX: The data-course attribute is already clean, so use it as the key
-                const courseName = input.dataset.course; 
+                const courseKey = input.dataset.course; 
                 const qpCode = input.value.trim();
 
-                if (courseName) {
-                    qpCodeMap[courseName] = qpCode; 
+                if (courseKey) {
+                    qpCodeMap[courseKey] = qpCode; 
                     saveCount++;
                 }
             });
