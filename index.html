@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nominal Roll Extractor (V10)</title>
+    <title>Nominal Roll Extractor (V13)</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -28,7 +28,7 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* --- NEW: Navigation Styles --- */
+        /* --- Navigation Styles --- */
         .nav-button {
             @apply py-2 px-3 rounded text-sm font-medium transition-colors;
         }
@@ -40,10 +40,9 @@
         }
 
 
-        /* --- PRINT STYLES (FIXED) --- */
+        /* --- PRINT STYLES --- */
         @media print {
             /* Hide the main app container and all other non-report elements */
-            /* --- UPDATED: Hide nav and all views during print --- */
             #main-nav, #view-extractor, #view-settings, #view-reports, body > py-config, body > py-script, #report-controls {
                 display: none !important; /* Be forceful */
             }
@@ -132,7 +131,7 @@
             .name-col { width: 35%; }
             .signature-col { width: 10%; } 
 
-            /* --- NEW: Question Paper Report Table Styles --- */
+            /* --- Question Paper Report Table Styles --- */
             .q-paper-table .sl-col { width: 10%; }
             .q-paper-table .course-col { width: 70%; }
             .q-paper-table .count-col { width: 20%; }
@@ -197,7 +196,7 @@
         .print-page .name-col { width: 35%; }
         .print-page .signature-col { width: 10%; } 
         
-        /* --- NEW: Question Paper Report Table Styles --- */
+        /* --- Question Paper Report Table Styles --- */
         .print-page .q-paper-table .sl-col { width: 10%; }
         .print-page .q-paper-table .course-col { width: 70%; }
         .print-page .q-paper-table .count-col { width: 20%; }
@@ -248,7 +247,7 @@
         <div class="bg-white p-8 rounded-lg shadow-xl w-full">
             
             <header class="mb-6">
-                <h1 class="text-3xl font-bold text-gray-800">Nominal Roll Extractor (V10)</h1>
+                <h1 class="text-3xl font-bold text-gray-800">Nominal Roll Extractor (V13)</h1>
                 <p class="text-gray-600 mt-2">
                     Upload multiple Nominal Roll PDFs at once, assign to rooms based on
                     <span class="font-medium text-indigo-600">custom capacities</span>, and print reports.
@@ -259,11 +258,12 @@
             <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-md mb-6">
                 <h4 class="font-semibold text-gray-800">How to Use:</h4>
                 <ol class="list-decimal list-inside text-sm text-gray-700 mt-2 space-y-1">
-                    <li>(First Time) Go to **Room Settings** and check capacities. Save if needed.</li>
+                    <li>Go to **Room Settings** and define capacities. Save changes.</li>
                     <li>Click 'Select PDF Files' and choose 1 or 100+ PDF files.</li>
-                    <li>Click 'Run Batch Extraction'. This now uses your saved room settings.</li>
-                    <li>Click 'Download Combined_Nominal_Roll.csv' for all data.</li>
-                    <li>Click 'Generate Room-wise Report' for seating lists.</li>
+                    <li>Click 'Run Batch Extraction'.</li>
+                    <li>Click 'Download Combined_Nominal_Roll.csv' for raw data (no rooms).</li>
+                    <li>Click 'Generate Room-wise Report' to allocate rooms & create seating lists.</li>
+                    <li>(Optional) Click 'Download Room Allocation Report' for a CSV *with* rooms.</li>
                     <li>Go to **Reports** to generate the "Question Paper Count" report.</li>
                 </ol>
             </div>
@@ -276,7 +276,6 @@
                     <input type="file" id="pdf-file" accept=".pdf" multiple class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
                 </div>
                 
-                <!-- *** CHANGED: py-click now points to the JS bridge function *** -->
                 <button id="run-button" 
                         py-click="start_extraction" 
                         class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-indigo-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50">
@@ -297,8 +296,11 @@
                 <div id="csv-download-container"></div>
                 
                 <button id="generate-report-button" class="hidden w-full inline-flex justify-center items-center rounded-md border border-transparent bg-blue-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50">
-                    Generate Room-wise Report
+                    Generate Room-wise Report (with Allocation)
                 </button>
+                
+                <!-- *** Container for the Room Allocation CSV button *** -->
+                <div id="room-csv-download-container" class="mt-3"></div>
             </div>
             
             <div id="report-controls" class="mt-6 p-4 bg-gray-100 rounded-lg hidden">
@@ -369,7 +371,7 @@
     <div id="q-paper-data-store" class="hidden"></div>
 
 
-    <!-- *** UPDATED: The Python Script (V9 Logic) *** -->
+    <!-- *** UPDATED: The Python Script (V11 Logic - No Allocation) *** -->
     <py-script>
         import pandas as pd
         import pdfplumber
@@ -389,7 +391,6 @@
         report_controls = document.getElementById("report-controls")
         report_output_area = document.getElementById("report-output-area")
         
-        # --- NEW: Q-Paper Report elements ---
         q_paper_data_store = document.getElementById("q-paper-data-store")
         generate_qpaper_report_button = document.getElementById("generate-qpaper-report-button")
         
@@ -397,7 +398,6 @@
         spinner = document.getElementById("spinner")
         button_text = document.getElementById("button-text")
         
-        # --- NEW: localStorage key ---
         ROOM_CONFIG_KEY = 'examRoomConfig'
 
         def log_message(message):
@@ -427,37 +427,29 @@
                 console.log(f"Sort Error: Could not parse Date '{row['Date']}' or Time '{row['Time']}'. Error: {e}")
                 return (datetime.min, datetime.min) 
 
-        # --- NEW: Bridge function called by py-click ---
+        
         async def start_extraction(event=None):
             """
-            This function is the new entry point from the "Run" button.
-            It fetches the room config from localStorage and passes it to the main
-            extraction function.
+            This function is the entry point from the "Run" button.
+            It calls the main extraction function.
+            Room config is no longer needed here.
             """
             try:
                 show_loader(True)
                 await asyncio.sleep(0) # Let loader show
-                
-                # Fetch config from localStorage
-                room_config_json = localStorage.getItem(ROOM_CONFIG_KEY)
-                if not room_config_json:
-                    log_message("Warning: No room config found. Using default.")
-                    room_config_json = "{}" # Pass empty JSON
                     
                 # Call the main logic function
-                await run_extraction_py(room_config_json)
+                await run_extraction_py()
                 
             except Exception as e:
                 log_message(f"Critical bridge error: {e}")
             finally:
-                # The main function will handle success/error,
-                # we just ensure the loader is hidden.
                 show_loader(False)
 
-        async def run_extraction_py(room_config_json, event=None):
+        async def run_extraction_py(event=None):
             """
-            This is the main extraction logic, now accepting room config.
-            The show_loader calls are handled by the wrapper function.
+            This is the main extraction logic.
+            It no longer does room allocation.
             """
             try:
                 # --- 1. Reset all UI elements ---
@@ -479,7 +471,7 @@
                                 
                 if file_list.length == 0:
                     log_message("Error: Please select one or more PDF files first.")
-                    return # No need to toggle loader, wrapper does it
+                    return
                 
                 # --- 2. PDF Processing Loop ---
                 all_exam_rows = []
@@ -601,76 +593,24 @@
                 all_exam_rows_sorted = sorted(all_exam_rows, key=get_sort_key)
                 await asyncio.sleep(0)
                                 
-                # --- 4. *** NEW ROOM ALLOCATION LOGIC (V9) *** ---
-                log_message("Allocating room numbers based on config...")
-                room_config = json.loads(room_config_json)
-                
-                room_capacities_list = []
-                if not room_config:
-                    log_message("No custom config found. Defaulting to 20 rooms of 30 students.")
-                    room_capacities_list = [30] * 20 # Default: 20 rooms of 30
-                else:
-                    # Sort keys ("Room 1", "Room 10", "Room 2") numerically
-                    sorted_room_keys = sorted(
-                        room_config.keys(), 
-                        key=lambda r: int(re.sub(r'\D', '', r) or 0) # Extract number, default 0
-                    )
-                    for key in sorted_room_keys:
-                        room_capacities_list.append(room_config[key])
-                    log_message(f"Using {len(room_capacities_list)} custom room capacities: {room_capacities_list}")
-
-                processed_rows_with_rooms = []
-                current_session_key = None
-                session_room_fills = {} # Tracks { ('date', 'time'): [0, 0, 0, ...] }
-                
-                for row in all_exam_rows_sorted:
-                    session_key = (row['Date'], row['Time'])
-                    
-                    if session_key not in session_room_fills:
-                        session_room_fills[session_key] = [0] * len(room_capacities_list)
-                        log_message(f"Setting up {len(room_capacities_list)} rooms for session: {session_key[0]} {session_key[1]}")
-                    
-                    current_fills = session_room_fills[session_key]
-                    
-                    assigned_room_index = -1
-                    for i in range(len(current_fills)):
-                        if current_fills[i] < room_capacities_list[i]:
-                            current_fills[i] += 1
-                            assigned_room_index = i
-                            break
-                            
-                    if assigned_room_index != -1:
-                        row['Room No'] = f"Room {assigned_room_index + 1}"
-                    else:
-                        # All configured rooms are full, assign to overflow
-                        overflow_room_num = len(current_fills) + 1
-                        row['Room No'] = f"Room {overflow_room_num} (Overflow)"
-                        # Log this only once per session
-                        if current_fills[len(current_fills)-1] == room_capacities_list[len(current_fills)-1]:
-                            log_message(f"Warning: Rooms full for session {session_key}. Assigning to Overflow.")
-                            current_fills.append(1) # Add an overflow counter
-                            room_capacities_list.append(float('inf')) # And infinite capacity
-                        
-                    processed_rows_with_rooms.append(row)
-                # --- END NEW ROOM ALLOCATION LOGIC ---
+                # --- 4. ROOM ALLOCATION LOGIC REMOVED (V11) ---
+                log_message("Data sorting complete.")
                 
                 # --- 5. Data Export & UI Update ---
                 log_message("Converting to DataFrame...")
-                df = pd.DataFrame(processed_rows_with_rooms)
+                df = pd.DataFrame(all_exam_rows_sorted)
                 
-                # --- 6. *** NEW: Q-PAPER REPORT SUMMARY (V9) *** ---
+                # --- 6. Q-PAPER REPORT SUMMARY (V11) ---
                 log_message("Generating question paper summary...")
-                # Group by Date, Time, and Course, then count students
                 q_paper_df = df.groupby(['Date', 'Time', 'Course']).size().reset_index(name='Student Count')
                 q_paper_summary_json = q_paper_df.to_json(orient='records')
                 
-                # Store this data in its own hidden div
                 q_paper_data_store.innerHTML = q_paper_summary_json
                 log_message("Question paper summary generated.")
                 # --- END Q-PAPER SUMMARY ---
 
                 # --- 7. Create CSV and enable buttons ---
-                df_csv = df[['Date', 'Time', 'Course', 'Register Number', 'Name', 'Room No']]
+                df_csv = df[['Date', 'Time', 'Course', 'Register Number', 'Name']]
                 csv_data = df_csv.to_csv(index=False, encoding='utf-8')
                 
                 blob = Blob.new([csv_data], {type: "text/csv;charset=utf-8"})
@@ -684,7 +624,7 @@
                     </a>
                 """
                 
-                json_data = json.dumps(processed_rows_with_rooms)
+                json_data = json.dumps(all_exam_rows_sorted)
                 json_data_store.innerHTML = json_data
                 
                 # Enable both report buttons
@@ -697,13 +637,15 @@
             except Exception as e:
                 log_message(f"An error occurred: {e}")
             
-            # 'finally' with show_loader is in the wrapper function
     </py-script>
 
-    <!-- *** UPDATED: JAVASCRIPT FOR ALL UI (V10) *** -->
+    <!-- *** UPDATED: JAVASCRIPT FOR ALL UI (V13 - Storage Read Fix) *** -->
     <script>
         // --- Global localStorage Key ---
         const ROOM_CONFIG_KEY = 'examRoomConfig';
+        
+        // --- Global var to hold data from the last *report run* ---
+        let lastGeneratedRoomData = [];
 
         // --- Get references to all Report elements ---
         const generateReportButton = document.getElementById('generate-report-button');
@@ -713,6 +655,7 @@
         const reportStatus = document.getElementById('report-status');
         const finalPrintButton = document.getElementById('final-print-button');
         const clearReportButton = document.getElementById('clear-report-button');
+        const roomCsvDownloadContainer = document.getElementById('room-csv-download-container');
         
         // --- Get references to all Navigation elements ---
         const viewExtractor = document.getElementById('view-extractor');
@@ -741,24 +684,163 @@
             const roomNumber = parseInt(roomPart.replace('Room ', ''), 10);
             return `${parts[0]}_${parts[1]}_${String(roomNumber).padStart(4, '0')}`;
         }
+        
+        // --- (V11): Room config parsing functions ---
+        function parseRoomConfigText(text) {
+            const config = {};
+            const lines = text.split('\n');
+            lines.forEach(line => {
+                if (line.trim()) {
+                    const parts = line.split(':');
+                    if (parts.length === 2) {
+                        const roomName = parts[0].trim();
+                        const count = parseInt(parts[1].trim(), 10);
+                        if (roomName && !isNaN(count)) {
+                            config[roomName] = count;
+                        }
+                    }
+                }
+            });
+            return config;
+        }
+        
+        function formatRoomConfigText(config) {
+            const sortedKeys = Object.keys(config).sort((a, b) => {
+                const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
+                const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
+                return numA - numB;
+            });
+            return sortedKeys.map(key => `${key}: ${config[key]}`).join('\n');
+        }
+        
+        // --- *** (V13) FIXED Room Capacity Loading Function *** ---
+        function getRoomCapacitiesFromStorage() {
+            
+            // Read the JSON STRING from local storage
+            let savedConfigJson = localStorage.getItem(ROOM_CONFIG_KEY) || "{}"; 
+            let roomConfig;
+
+            try {
+                // Parse the JSON string into an object
+                roomConfig = JSON.parse(savedConfigJson);
+            } catch (e) {
+                console.error("Error parsing room config from localStorage:", e);
+                roomConfig = {}; // Default to empty on error
+            }
+
+            let roomNames = [];
+            let roomCapacities = [];
+            
+            if (Object.keys(roomConfig).length === 0) {
+                // Default if no config
+                console.log("Using default room config (20 rooms of 30)");
+                roomNames = Array.from({length: 20}, (_, i) => `Room ${i + 1}`);
+                roomCapacities = Array(20).fill(30);
+            } else {
+                // Use the loaded config
+                console.log("Using saved room config:", roomConfig);
+                const sortedRoomKeys = Object.keys(roomConfig).sort((a, b) => {
+                    const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
+                    const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
+                    return numA - numB;
+                });
+                roomNames = sortedRoomKeys;
+                roomCapacities = sortedRoomKeys.map(key => roomConfig[key]);
+            }
+            return { roomNames, roomCapacities };
+        }
+        // --- *** END V13 FIX *** ---
+
 
         // --- 1. Event listener for the "Generate Room-wise Report" button ---
+        // --- (V12) Allocation Logic (Now uses fixed V13 getter) ---
         generateReportButton.addEventListener('click', async () => {
+            
             generateReportButton.disabled = true;
-            generateReportButton.textContent = "Generating Report...";
+            generateReportButton.textContent = "Allocating Rooms & Generating Report...";
             reportOutputArea.innerHTML = "";
             reportControls.classList.add('hidden');
+            roomCsvDownloadContainer.innerHTML = ""; // Clear old CSV button
+            lastGeneratedRoomData = []; // Clear old data
             await new Promise(resolve => setTimeout(resolve, 50));
 
             try {
+                // --- 1. Get RAW student data (no rooms) ---
                 const data = JSON.parse(jsonDataStore.innerHTML);
                 if (!data || data.length === 0) {
                     alert("No data to generate. Please run extraction first.");
                     return;
                 }
+                
+                // --- 2. Get CURRENT room capacities from localStorage ---
+                // This is the "Master List" of configured rooms.
+                // (This function is now fixed in V13)
+                const { roomNames: masterRoomNames, roomCapacities: masterRoomCaps } = getRoomCapacitiesFromStorage();
+                
+                // --- 3. *** Perform Room Allocation in JavaScript (V12 Logic) *** ---
+                const processed_rows_with_rooms = [];
+                const sessionRoomFills = {}; // Tracks { 'date_time': [0, 0, 0, ...] }
+                const DEFAULT_OVERFLOW_CAPACITY = 30;
+                
+                // 'data' is already sorted by Python
+                for (const row of data) {
+                    const sessionKey = `${row.Date}_${row.Time}`;
+                    
+                    if (!sessionRoomFills[sessionKey]) {
+                        // Create a fresh fill-count array for this session
+                        // based on the master list
+                        sessionRoomFills[sessionKey] = new Array(masterRoomCaps.length).fill(0);
+                    }
+                    
+                    const currentFills = sessionRoomFills[sessionKey];
+                    let assignedRoomName = "";
+                    
+                    // --- 3a. Try to fill configured rooms first ---
+                    for (let i = 0; i < masterRoomCaps.length; i++) {
+                        if (currentFills[i] < masterRoomCaps[i]) {
+                            currentFills[i]++; // Add student to this room
+                            assignedRoomName = masterRoomNames[i];
+                            break;
+                        }
+                    }
+                    
+                    // --- 3b. If all configured rooms are full, create overflow ---
+                    if (assignedRoomName === "") {
+                        // All master rooms are full. Check for overflows.
+                        // Overflows start at index `masterRoomCaps.length`
+                        let foundOverflowSpot = false;
+                        for (let i = masterRoomCaps.length; i < currentFills.length; i++) {
+                            if (currentFills[i] < DEFAULT_OVERFLOW_CAPACITY) {
+                                currentFills[i]++;
+                                // Overflow room names are "Room X (Overflow)"
+                                // We base 'X' on the master list length
+                                assignedRoomName = `Room ${i + 1} (Overflow)`;
+                                foundOverflowSpot = true;
+                                break;
+                            }
+                        }
+                        
+                        // --- 3c. If no existing overflow has space, create a *new* overflow ---
+                        if (!foundOverflowSpot) {
+                            // Add a new counter for this new overflow room
+                            currentFills.push(1); 
+                            // Assign to this new room
+                            assignedRoomName = `Room ${currentFills.length} (Overflow)`;
+                        }
+                    }
+                    
+                    // Add the new student object (with Room No) to our list
+                    processed_rows_with_rooms.push({ ...row, 'Room No': assignedRoomName });
+                }
+                // --- *** End of JS Allocation (V12 Logic) *** ---
+                
+                // --- 4. Store this new data for the CSV download ---
+                lastGeneratedRoomData = processed_rows_with_rooms;
 
+                // --- 5. Group data for Report Generation ---
+                // (This logic is the same, but runs on the new data)
                 const sessions = {};
-                data.forEach(student => {
+                processed_rows_with_rooms.forEach(student => {
                     const key = `${student.Date}_${student.Time}_${student['Room No']}`;
                     if (!sessions[key]) {
                         sessions[key] = {
@@ -785,6 +867,7 @@
                     return getNumericSortKey(a).localeCompare(getNumericSortKey(b));
                 });
 
+                // --- 6. Build the HTML report pages (Same as V10/V11) ---
                 sortedSessionKeys.forEach(key => {
                     const session = sessions[key];
                     const studentsPerPage = 20;
@@ -873,10 +956,19 @@
                     }
                 });
 
+                // --- 7. Show report and controls ---
                 reportOutputArea.innerHTML = allPagesHtml;
                 reportOutputArea.style.display = 'block'; 
                 reportStatus.textContent = `Generated ${totalPagesGenerated} total pages for ${sortedSessionKeys.length} room sessions.`;
                 reportControls.classList.remove('hidden');
+                
+                // --- 8. Add the download button for the Room CSV ---
+                roomCsvDownloadContainer.innerHTML = `
+                    <button id="download-room-csv-button" class="w-full inline-flex justify-center items-center rounded-md border border-gray-300 bg-white py-3 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
+                        Download Room Allocation Report (.csv)
+                    </button>
+                `;
+                document.getElementById('download-room-csv-button').addEventListener('click', downloadRoomCsv);
 
             } catch (e) {
                 console.error("Error generating room-wise report:", e);
@@ -884,7 +976,7 @@
                 reportControls.classList.remove('hidden');
             } finally {
                 generateReportButton.disabled = false;
-                generateReportButton.textContent = "Generate Room-wise Report";
+                generateReportButton.textContent = "Generate Room-wise Report (with Allocation)";
             }
         });
 
@@ -898,10 +990,49 @@
             reportOutputArea.innerHTML = "";
             reportOutputArea.style.display = 'none'; 
             reportControls.classList.add('hidden');
+            roomCsvDownloadContainer.innerHTML = ""; // Clear CSV button
+            lastGeneratedRoomData = []; // Clear data
         });
         
+        // --- (V11) Function to download the room-allocated CSV ---
+        function downloadRoomCsv() {
+            if (!lastGeneratedRoomData || lastGeneratedRoomData.length === 0) {
+                alert("No room data to download.");
+                return;
+            }
+            
+            // Define headers
+            const headers = ['Date', 'Time', 'Course', 'Register Number', 'Name', 'Room No'];
+            
+            // Convert JSON to CSV string
+            let csvContent = headers.join(",") + "\n";
+            lastGeneratedRoomData.forEach(row => {
+                const values = headers.map(header => {
+                    let val = row[header] ? row[header].toString() : "";
+                    // Escape quotes by doubling them
+                    val = val.replace(/"/g, '""');
+                    // If value contains a comma, wrap it in quotes
+                    if (val.includes(',') || val.includes('"')) {
+                        val = `"${val}"`;
+                    }
+                    return val;
+                });
+                csvContent += values.join(",") + "\n";
+            });
+
+            // Create blob and trigger download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", "Room_Allocation_Report.csv");
+            document.body.appendChild(link); // Required for Firefox
+            link.click();
+            document.body.removeChild(link);
+        }
+
         
-        // --- *** NAVIGATION VIEW-SWITCHING LOGIC *** ---
+        // --- NAVIGATION VIEW-SWITCHING LOGIC ---
         navExtractor.addEventListener('click', () => showView(viewExtractor, navExtractor));
         navSettings.addEventListener('click', () => showView(viewSettings, navSettings));
         navReports.addEventListener('click', () => showView(viewReports, navReports));
@@ -917,46 +1048,17 @@
             buttonToActivate.classList.add('nav-button-active');
         }
 
-        // --- *** NEW: ROOM SETTINGS LOGIC (V9) *** ---
-        
-        // Parses "Room 1: 30" into a JSON object
-        function parseRoomConfigText(text) {
-            const config = {};
-            const lines = text.split('\n');
-            lines.forEach(line => {
-                if (line.trim()) {
-                    // Be flexible with spacing: "Room 1: 25" or "Room1:25"
-                    const parts = line.split(':');
-                    if (parts.length === 2) {
-                        const roomName = parts[0].trim();
-                        const count = parseInt(parts[1].trim(), 10);
-                        if (roomName && !isNaN(count)) {
-                            config[roomName] = count;
-                        }
-                    }
-                }
-            });
-            return config;
-        }
-        
-        // Formats a JSON object { "Room 1": 30 } into text
-        function formatRoomConfigText(config) {
-            // Sort keys numerically for consistent display
-            const sortedKeys = Object.keys(config).sort((a, b) => {
-                const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
-                const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
-                return numA - numB;
-            });
-            return sortedKeys.map(key => `${key}: ${config[key]}`).join('\n');
-        }
-        
-        // Save button
+        // --- ROOM SETTINGS LOGIC ---
         saveRoomConfigButton.addEventListener('click', () => {
             try {
-                const config = parseRoomConfigText(roomConfigInput.value);
+                // Read the raw text
+                const configText = roomConfigInput.value;
+                // Parse it into a structured object
+                const config = parseRoomConfigText(configText);
+                // Save the *structured* object as a JSON string
                 localStorage.setItem(ROOM_CONFIG_KEY, JSON.stringify(config));
                 
-                // Re-format the text to show the user it's cleaned up
+                // Re-format the text in the box to be clean and sorted
                 roomConfigInput.value = formatRoomConfigText(config);
                 
                 roomConfigStatus.textContent = "Settings saved successfully!";
@@ -967,15 +1069,24 @@
             }
         });
 
-        // Load config on page load
         function loadRoomConfig() {
-            let savedConfig = localStorage.getItem(ROOM_CONFIG_KEY);
+            let savedConfigJson = localStorage.getItem(ROOM_CONFIG_KEY);
             let config;
             
-            if (savedConfig) {
-                config = JSON.parse(savedConfig);
+            if (savedConfigJson) {
+                // --- FIX V13: Correctly parse the JSON string ---
+                try {
+                    config = JSON.parse(savedConfigJson);
+                } catch (e) {
+                    console.error("Error parsing saved config, resetting.", e);
+                    config = {};
+                }
             } else {
-                // Create a default config for the user
+                config = {};
+            }
+            
+            if (Object.keys(config).length === 0) {
+                // Create a default config for the user if none/empty
                 config = {};
                 for (let i = 1; i <= 20; i++) {
                     config[`Room ${i}`] = 30;
@@ -983,15 +1094,17 @@
                 localStorage.setItem(ROOM_CONFIG_KEY, JSON.stringify(config));
             }
             
+            // Format the object into clean, sorted text for the textarea
             roomConfigInput.value = formatRoomConfigText(config);
         }
         
-        // --- *** NEW: Q-PAPER REPORT LOGIC (V10 - Typo Fix) *** ---
+        // --- Q-PAPER REPORT LOGIC (Unchanged) ---
         generateQPaperReportButton.addEventListener('click', async () => {
             generateQPaperReportButton.disabled = true;
             generateQPaperReportButton.textContent = "Generating...";
             reportOutputArea.innerHTML = "";
             reportControls.classList.add('hidden');
+            roomCsvDownloadContainer.innerHTML = ""; // Clear CSV button
             await new Promise(resolve => setTimeout(resolve, 50));
             
             try {
@@ -1001,7 +1114,6 @@
                     return;
                 }
                 
-                // Group data by session (Date + Time)
                 const sessions = {};
                 data.forEach(item => {
                     const key = `${item.Date}_${item.Time}`;
@@ -1020,8 +1132,6 @@
                 
                 let allPagesHtml = '';
                 let totalPages = 0;
-                
-                // Sort sessions (by date, then time)
                 const sortedSessionKeys = Object.keys(sessions).sort((a, b) => a.localeCompare(b));
                 
                 sortedSessionKeys.forEach(key => {
@@ -1041,7 +1151,6 @@
                         `;
                     });
                     
-                    // --- *** FIX (V10): Corrected </tbody> and <tfoot> placement *** ---
                     const pageHtml = `
                         <div class="print-page">
                             <h1>University of Calicut</h1>
@@ -1068,8 +1177,6 @@
                             </table>
                         </div>
                     `;
-                    // --- *** END FIX (V10) *** ---
-                    
                     allPagesHtml += pageHtml;
                 });
                 
