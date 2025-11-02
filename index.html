@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Title -->
-    <title>UOC Exam Management V27</title>
+    <title>UOC Exam Management V28</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -85,6 +85,17 @@
                 margin-bottom: 1rem;
                 padding: 0.5rem;
                 border: 1px solid #ccc;
+            }
+            
+            /* (V28) Style for new location header */
+            .report-location-header {
+                font-size: 12pt;
+                font-weight: bold;
+                font-style: italic;
+                text-align: center;
+                margin-bottom: 0.5rem;
+                border-bottom: 1px solid #ccc;
+                padding-bottom: 0.5rem;
             }
             
             .invigilator-footer {
@@ -175,6 +186,18 @@
             padding: 0.5rem;
             border: 1px solid #ccc;
         }
+        
+        /* (V28) Style for new location header */
+        .report-location-header {
+            font-size: 12pt;
+            font-weight: bold;
+            font-style: italic;
+            text-align: center;
+            margin-bottom: 0.5rem;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 0.5rem;
+        }
+        
         .print-page table {
             width: 100%;
             border-collapse: collapse;
@@ -229,11 +252,11 @@
 </head>
 <body class="bg-gray-100 font-sans">
     
-    <!-- *** Main Navigation Bar (V27 Style Update) *** -->
+    <!-- *** Main Navigation Bar (V28 Style Update) *** -->
     <nav id="main-nav" class="bg-gray-800 text-white p-4 sticky top-0 z-50">
         <div class="container max-w-2xl mx-auto flex justify-between items-center">
             <!-- New Title Here -->
-            <h1 class="text-lg font-bold text-white bg-red-600 px-3 py-1 rounded-md shadow-md">UOC Exam Management (V27)</h1>
+            <h1 class="text-lg font-bold text-white bg-red-600 px-3 py-1 rounded-md shadow-md">UOC Exam Management (V28)</h1>
             
             <!-- Navigation buttons on the right -->
             <div class="flex gap-4">
@@ -255,7 +278,7 @@
             <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-md mb-6">
                 <h4 class="font-semibold text-gray-800">How to Use:</h4>
                 <ol class="list-decimal list-inside text-sm text-gray-700 mt-2 space-y-1">
-                    <li>Go to **Room Settings** and define capacities. Save changes.</li>
+                    <li>Go to **Room Settings** and define capacities and locations. Save changes.</li>
                     <li>Click 'Select PDF Files' and choose 1 or 100+ PDF files.</li>
                     <li>Click 'Run Batch Extraction'. Check the **Status Log** for errors.</li>
                     <li>Click 'Download Combined_Nominal_Roll.csv' for raw data.</li>
@@ -303,7 +326,7 @@
         </div>
     </div>
     
-    <!-- *** "Room Settings" View (V26 - DYNAMIC FORM) *** -->
+    <!-- *** "Room Settings" View (V28 - LOCATION FIELD ADDED) *** -->
     <div id="view-settings" class="container max-w-2xl mx-auto p-4 min-h-screen hidden">
         <div class="bg-white p-8 rounded-lg shadow-xl w-full">
             <h1 class="text-3xl font-bold text-gray-800 mb-6">Room Capacity Settings</h1>
@@ -317,7 +340,8 @@
                 <!-- Header for the form -->
                 <div class="flex items-center gap-3 px-2">
                     <label class="font-semibold text-gray-700 w-24 shrink-0">Room Name</label>
-                    <label class="font-semibold text-gray-700 w-32">Capacity</label>
+                    <label class="font-semibold text-gray-700 w-20">Capacity</label>
+                    <label class="font-semibold text-gray-700 flex-grow">Location (e.g., Commerce Block)</label>
                 </div>
                 
                 <!-- Container where room rows will be injected -->
@@ -695,13 +719,16 @@
             
     </py-script>
 
-    <!-- *** JAVASCRIPT FOR ALL UI (V27) *** -->
+    <!-- *** JAVASCRIPT FOR ALL UI (V28) *** -->
     <script>
         // --- Global localStorage Key ---
         const ROOM_CONFIG_KEY = 'examRoomConfig';
         
         // --- Global var to hold data from the last *report run* ---
         let lastGeneratedRoomData = [];
+        
+        // --- (V28) Global var to hold room config map for report generation ---
+        let currentRoomConfig = {};
 
         // --- Get references to all Report elements ---
         const generateReportButton = document.getElementById('generate-report-button');
@@ -741,18 +768,19 @@
             return `${parts[0]}_${parts[1]}_${String(roomNumber).padStart(4, '0')}`;
         }
         
-        // --- (V26) Helper function to create a new room row HTML ---
-        function createRoomRowHtml(roomName, capacity) {
+        // --- (V28) Helper function to create a new room row HTML (with location) ---
+        function createRoomRowHtml(roomName, capacity, location) {
             return `
                 <div class="room-row flex items-center gap-3 p-2 border-b border-gray-200">
                     <label class="room-name-label font-medium text-gray-700 w-24 shrink-0">${roomName}:</label>
-                    <input type="number" class="room-capacity-input block w-32 p-2 border border-gray-300 rounded-md shadow-sm text-sm" value="${capacity}" min="1" placeholder="30">
+                    <input type="number" class="room-capacity-input block w-20 p-2 border border-gray-300 rounded-md shadow-sm text-sm" value="${capacity}" min="1" placeholder="30">
+                    <input type="text" class="room-location-input block flex-grow p-2 border border-gray-300 rounded-md shadow-sm text-sm" value="${location}" placeholder="e.g., Commerce Block">
                     <button class="remove-room-button ml-auto text-sm text-red-600 hover:text-red-800 font-medium">&times; Remove</button>
                 </div>
             `;
         }
         
-        // --- Room Capacity Loading Function ---
+        // --- (V28) Room Capacity Loading Function (uses new object structure) ---
         function getRoomCapacitiesFromStorage() {
             let savedConfigJson = localStorage.getItem(ROOM_CONFIG_KEY) || "{}"; 
             let roomConfig;
@@ -763,6 +791,9 @@
                 roomConfig = {};
             }
 
+            // (V28) Store this in the global var for report generation
+            currentRoomConfig = roomConfig; 
+            
             let roomNames = [];
             let roomCapacities = [];
             
@@ -771,6 +802,12 @@
                 console.log("Using default room config (30 rooms of 30)");
                 roomNames = Array.from({length: 30}, (_, i) => `Room ${i + 1}`);
                 roomCapacities = Array(30).fill(30);
+                
+                // (V28) Also update the global config to reflect this default
+                currentRoomConfig = {};
+                for (let i = 1; i <= 30; i++) {
+                    currentRoomConfig[`Room ${i}`] = { capacity: 30, location: "" };
+                }
             } else {
                 console.log("Using saved room config:", roomConfig);
                 const sortedRoomKeys = Object.keys(roomConfig).sort((a, b) => {
@@ -779,7 +816,8 @@
                     return numA - numB;
                 });
                 roomNames = sortedRoomKeys;
-                roomCapacities = sortedRoomKeys.map(key => roomConfig[key]);
+                // (V28) Get capacity from the new object structure
+                roomCapacities = sortedRoomKeys.map(key => roomConfig[key].capacity);
             }
             return { roomNames, roomCapacities };
         }
@@ -805,6 +843,7 @@
                 }
                 
                 // 2. Get CURRENT room capacities
+                // (V28) This function now also populates 'currentRoomConfig' global var
                 const { roomNames: masterRoomNames, roomCapacities: masterRoomCaps } = getRoomCapacitiesFromStorage();
                 
                 // 3. Perform Room Allocation
@@ -891,6 +930,11 @@
                 sortedSessionKeys.forEach(key => {
                     const session = sessions[key];
                     const studentsPerPage = 20;
+                    
+                    // (V28) Get location for this room
+                    const roomInfo = currentRoomConfig[session.Room];
+                    const location = roomInfo ? roomInfo.location : "";
+                    const locationHtml = location ? `<div class="report-location-header">Location: ${location}</div>` : "";
 
                     let courseSummaryHtml = '';
                     for (const [courseName, count] of Object.entries(session.courseCounts)) {
@@ -901,6 +945,7 @@
                     const pageHeaderHtml = `
                         <h1>University of Calicut</h1>
                         <h2>${session.Date} &nbsp;|&nbsp; ${session.Time} &nbsp;|&nbsp; ${session.Room}</h2>
+                        ${locationHtml} <!-- (V28) Added location here -->
                         <div class="course-summary">
                             ${courseSummaryHtml}
                         </div>
@@ -1024,13 +1069,18 @@
                 return;
             }
             
-            const headers = ['Date', 'Time', 'Course', 'Register Number', 'Name', 'Room No'];
+            // (V28) Add Location to CSV
+            const headers = ['Date', 'Time', 'Course', 'Register Number', 'Name', 'Room No', 'Location'];
             let csvContent = headers.join(",") + "\n";
             
             lastGeneratedRoomData.forEach(row => {
+                // (V28) Get location for this row
+                const roomInfo = currentRoomConfig[row['Room No']];
+                const location = (roomInfo && roomInfo.location) ? roomInfo.location : "";
+                row['Location'] = location; // Add it to the row object for mapping
+                
                 const values = headers.map(header => {
                     let val = row[header] ? row[header].toString() : "";
-                    // *** FIX: Corrected invalid regex flags from /"/Lg to /"/g ***
                     val = val.replace(/"/g, '""');
                     if (val.includes(',')) {
                         val = `"${val}"`;
@@ -1069,9 +1119,9 @@
             clearReport(); // Always clear reports when switching views
         }
 
-        // --- (V26) NEW ROOM SETTINGS LOGIC (DYNAMIC FORM) ---
+        // --- (V28) NEW ROOM SETTINGS LOGIC (OBJECT-BASED) ---
         
-        // --- (V26) Save from dynamic form ---
+        // --- (V28) Save from dynamic form (uses new object structure) ---
         saveRoomConfigButton.addEventListener('click', () => {
             try {
                 const newConfig = {};
@@ -1080,6 +1130,7 @@
                 roomRows.forEach(row => {
                     const roomName = row.querySelector('.room-name-label').textContent.replace(':', '').trim();
                     let capacity = parseInt(row.querySelector('.room-capacity-input').value, 10);
+                    let location = row.querySelector('.room-location-input').value.trim();
                     
                     // Default to 30 if blank or invalid
                     if (isNaN(capacity) || capacity <= 0) {
@@ -1087,7 +1138,11 @@
                     }
                     
                     if (roomName) {
-                        newConfig[roomName] = capacity;
+                        // (V28) Save as an object
+                        newConfig[roomName] = {
+                            capacity: capacity,
+                            location: location
+                        };
                     }
                 });
                 
@@ -1106,7 +1161,7 @@
             }
         });
 
-        // --- (V26) Load data into dynamic form ---
+        // --- (V28) Load data into dynamic form (uses new object structure) ---
         function loadRoomConfig() {
             let savedConfigJson = localStorage.getItem(ROOM_CONFIG_KEY);
             let config;
@@ -1122,14 +1177,18 @@
                 config = {};
             }
             
+            // (V28) Store in global var for other functions to use
+            currentRoomConfig = config;
+            
             if (Object.keys(config).length === 0) {
                 // *** (V27): Default to 30 rooms ***
                 console.log("Using default room config (30 rooms of 30)");
                 config = {};
                 for (let i = 1; i <= 30; i++) {
-                    config[`Room ${i}`] = 30;
+                    config[`Room ${i}`] = { capacity: 30, location: "" };
                 }
                 localStorage.setItem(ROOM_CONFIG_KEY, JSON.stringify(config));
+                currentRoomConfig = config; // Update global var
             }
             
             // Populate the dynamic form
@@ -1141,13 +1200,13 @@
             });
             
             sortedKeys.forEach(roomName => {
-                const capacity = config[roomName];
-                const rowHtml = createRoomRowHtml(roomName, capacity);
+                const roomData = config[roomName];
+                const rowHtml = createRoomRowHtml(roomName, roomData.capacity, roomData.location);
                 roomConfigContainer.insertAdjacentHTML('beforeend', rowHtml);
             });
         }
         
-        // --- (V26) Add New Room Button ---
+        // --- (V28) Add New Room Button (with location) ---
         addRoomButton.addEventListener('click', () => {
             const allRows = roomConfigContainer.querySelectorAll('.room-row');
             let newName = "Room 1";
@@ -1164,7 +1223,7 @@
                 newName = `Room ${lastNum + 1}`;
             }
             
-            const newRowHtml = createRoomRowHtml(newName, 30); // Default to 30
+            const newRowHtml = createRoomRowHtml(newName, 30, ""); // Default to 30, no location
             roomConfigContainer.insertAdjacentHTML('beforeend', newRowHtml);
         });
         
@@ -1280,3 +1339,4 @@
 
 </body>
 </html>
+
