@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Title -->
-    <title>UOC Exam Management V89 (Fixes)</title>
+    <title>UOC Exam Management V90 (Fixes)</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn-tailwindcss.vercel.app/"></script>
@@ -202,6 +202,11 @@
                 background-color: #eee;
             }
             
+            /* V90 FIX: Add break-before: avoid to tables to keep with headers */
+            .print-table {
+                break-before: avoid;
+            }
+
             .sl-col { width: 5%; }
             .course-col { width: 30%; } 
             .reg-col { width: 20%; }
@@ -235,6 +240,8 @@
                 border-collapse: collapse;
                 /* V32: Font size decreased */
                 font-size: 6pt; 
+                /* V90 FIX: Add break-before: avoid to tables to keep with headers */
+                break-before: avoid;
             }
             .daywise-report-table th,
             .daywise-report-table td {
@@ -253,6 +260,8 @@
                 border-collapse: collapse;
                 font-size: 10pt;
                 margin-top: 1rem;
+                /* V90 FIX: Add break-before: avoid to tables to keep with headers */
+                break-before: avoid;
             }
             .absentee-report-table th,
             .absentee-report-table td {
@@ -500,8 +509,8 @@
     <nav id="main-nav" class="bg-indigo-600 text-white sticky top-0 z-50 shadow-lg">
         <!-- V83: Top Banner (Spanning Width, Centered Title) -->
         <div id="top-banner" class="w-full bg-indigo-700 text-center py-2">
-            <!-- V89: Updated Title -->
-            <h1 class="text-xl font-extrabold tracking-wider text-white">UOC Exam Management (V89)</h1>
+            <!-- V90: Updated Title -->
+            <h1 class="text-xl font-extrabold tracking-wider text-white">UOC Exam Management (V90)</h1>
         </div>
         
         <!-- V83: Navigation Tabs (Below Banner) -->
@@ -1352,7 +1361,7 @@
             
     </py-script>
 
-    <!-- *** JAVASCRIPT FOR ALL UI (V89) *** -->
+    <!-- *** JAVASCRIPT FOR ALL UI (V90) *** -->
     <script>
         // --- Global localStorage Key ---
         const ROOM_CONFIG_KEY = 'examRoomConfig';
@@ -1691,16 +1700,19 @@
                     }
                     
                     const pageHeaderHtml = `
-                        <h1>${currentCollegeName}</h1> <!-- V48: Use college name -->
-                        <h2>${session.Date} &nbsp;|&nbsp; ${session.Time} &nbsp;|&nbsp; ${session.Room}</h2>
-                        ${locationHtml} <!-- (V28) Added location here -->
-                        <div class="course-summary">
-                            ${courseSummaryHtml}
+                        <!-- V89: Wrap headers in group to prevent page break -->
+                        <div class="print-header-group">
+                            <h1>${currentCollegeName}</h1> <!-- V48: Use college name -->
+                            <h2>${session.Date} &nbsp;|&nbsp; ${session.Time} &nbsp;|&nbsp; ${session.Room}</h2>
+                            ${locationHtml} <!-- (V28) Added location here -->
+                            <div class="course-summary">
+                                ${courseSummaryHtml}
+                            </div>
                         </div>
                     `;
                     
                     const tableHeaderHtml = `
-                        <table>
+                        <table class="print-table">
                             <thead>
                                 <tr>
                                     <th class="sl-col">Sl No</th>
@@ -2049,9 +2061,12 @@
                     allPagesHtml += `
                         <div class="print-page">
                             <!-- V57: Header repeated on each page -->
-                            <h1>${currentCollegeName}</h1>
-                            <h2>Absentee Statement</h2>
-                            <h3>${date} &nbsp;|&nbsp; ${time}</h3>
+                            <!-- V89: Wrap headers in group to prevent page break -->
+                            <div class="print-header-group">
+                                <h1>${currentCollegeName}</h1>
+                                <h2>Absentee Statement</h2>
+                                <h3>${date} &nbsp;|&nbsp; ${time}</h3>
+                            </div>
                         
                             <table class="absentee-report-table">
                                 <thead>
@@ -2389,11 +2404,14 @@
                     
                     const pageHtml = `
                         <div class="print-page">
-                            <h1>${currentCollegeName}</h1> <!-- V48: Use college name -->
-                            <h2>Question Paper Summary</h2>
-                            <h3>${session.Date} &nbsp;|&nbsp; ${session.Time}</h3>
+                            <!-- V89: Wrap headers in group to prevent page break -->
+                            <div class="print-header-group">
+                                <h1>${currentCollegeName}</h1> <!-- V48: Use college name -->
+                                <h2>Question Paper Summary</h2>
+                                <h3>${session.Date} &nbsp;|&nbsp; ${session.Time}</h3>
+                            </div>
                             
-                            <table class="q-paper-table">
+                            <table class="q-paper-table print-table">
                                 <thead>
                                     <tr>
                                         <th class="sl-col">Sl No</th>
@@ -2888,6 +2906,14 @@
 
             uniqueCoursesArray.forEach(courseName => {
                 const cleanKey = cleanCourseKey(courseName);
+
+                // V90 FIX: If the course name cleans to an empty string,
+                // don't render an input for it as it cannot be saved.
+                if (!cleanKey) {
+                    console.warn(`Skipping QP code input for un-keyable course: ${courseName}`);
+                    return; // Skip this iteration
+                }
+                
                 // V89: Look up the code in the session-specific map
                 const savedCode = sessionCodes[cleanKey] || "";
                 
