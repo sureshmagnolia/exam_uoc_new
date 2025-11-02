@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Title -->
-    <title>UOC Exam Management V74</title>
+    <title>UOC Exam Management V75</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -1366,9 +1366,8 @@
         // --- V70 FIX: Aggressive Key Cleaning Function (Fixes 1st/Last course) ---
         function cleanCourseKey(courseName) {
             if (typeof courseName !== 'string') return '';
-            // Remove all Unicode characters that might be invisible whitespace or markers, replace with space, and aggressively trim.
+            // Replace ALL non-standard characters with a space, replace multiple spaces with one, then trim.
             let cleaned = courseName.replace(/[^\w\s\-\(\)\[\]\/&,;.]/g, '').toUpperCase();
-            // Replace multiple spaces/newlines with a single space, then final trim
             return cleaned.replace(/\s+/g, ' ').trim();
         }
         
@@ -1735,8 +1734,7 @@
                     roomSessions[key].students.push(student);
                 });
                 
-                // V72 FIX: Use a variable that is actually defined inside this block
-                const daySessions = {}; 
+                const daySessions = {}; // V72 FIX: Added definition here
 
                 // 4. Create new flat list with SlNoInRoom
                 let flatStudentList = [];
@@ -1774,9 +1772,10 @@
                 // 7. Build the HTML
                 let allPagesHtml = '';
                 let totalPagesGenerated = 0;
-                const STUDENTS_PER_COLUMN = 120; // (V31) Adjusted for 2 columns
-                const COLUMNS_PER_PAGE = 2; // (V31) Changed from 3
-                const STUDENTS_PER_PAGE = STUDENTS_PER_COLUMN * COLUMNS_PER_PAGE; // 240
+                // V75: Updated for better fit
+                const STUDENTS_PER_COLUMN = 95; 
+                const COLUMNS_PER_PAGE = 2; 
+                const STUDENTS_PER_PAGE = STUDENTS_PER_COLUMN * COLUMNS_PER_PAGE; 
 
                 // (V30) Helper to build a table for a column, NOW WITH COURSE GROUPING
                 function buildColumnTable(studentChunk) {
