@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Title -->
-    <title>UOC Exam Management V25</title>
+    <title>UOC Exam Management V27</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -229,11 +229,11 @@
 </head>
 <body class="bg-gray-100 font-sans">
     
-    <!-- *** Main Navigation Bar (V25 Style Update) *** -->
+    <!-- *** Main Navigation Bar (V27 Style Update) *** -->
     <nav id="main-nav" class="bg-gray-800 text-white p-4 sticky top-0 z-50">
         <div class="container max-w-2xl mx-auto flex justify-between items-center">
             <!-- New Title Here -->
-            <h1 class="text-lg font-bold text-white bg-red-600 px-3 py-1 rounded-md shadow-md">UOC Exam Management (V25)</h1>
+            <h1 class="text-lg font-bold text-white bg-red-600 px-3 py-1 rounded-md shadow-md">UOC Exam Management (V27)</h1>
             
             <!-- Navigation buttons on the right -->
             <div class="flex gap-4">
@@ -303,23 +303,40 @@
         </div>
     </div>
     
-    <!-- *** "Room Settings" View (Functional) *** -->
+    <!-- *** "Room Settings" View (V26 - DYNAMIC FORM) *** -->
     <div id="view-settings" class="container max-w-2xl mx-auto p-4 min-h-screen hidden">
         <div class="bg-white p-8 rounded-lg shadow-xl w-full">
             <h1 class="text-3xl font-bold text-gray-800 mb-6">Room Capacity Settings</h1>
             <p class="text-gray-600 mb-4">
                 Define the number of students per room. This list is automatically saved to your browser.
-                The Python script will use this list in order, from top to bottom, for allocation.
+                If a capacity is left blank, it will default to 30 when saved.
             </p>
+            
+            <!-- Dynamic Form Container -->
             <div class="space-y-4">
-                <div>
-                    <label for="room-config-input" class="block text-sm font-medium text-gray-700">Room Capacities (one per line):</label>
-                    <textarea id="room-config-input" rows="20" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm font-mono text-sm" placeholder="Room 1: 30&#10;Room 2: 30&#10;..."></textarea>
+                <!-- Header for the form -->
+                <div class="flex items-center gap-3 px-2">
+                    <label class="font-semibold text-gray-700 w-24 shrink-0">Room Name</label>
+                    <label class="font-semibold text-gray-700 w-32">Capacity</label>
                 </div>
+                
+                <!-- Container where room rows will be injected -->
+                <div id="room-config-container" class="space-y-2 max-h-96 overflow-y-auto pr-2">
+                    <!-- Rows will be added by JavaScript -->
+                </div>
+                
+                <!-- Add New Room Button -->
+                <button id="add-room-button" class="w-full inline-flex justify-center items-center rounded-md border border-dashed border-gray-400 bg-gray-50 py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-100">
+                    + Add New Room
+                </button>
+                
+                <hr class="my-4">
+                
+                <!-- Save Button -->
                 <button id="save-room-config-button" class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-indigo-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700">
                     Save Room Settings
                 </button>
-                <div id="room-config-status" class="text-sm text-green-600 font-medium text-center"></div>
+                <div id="room-config-status" class="text-sm text-green-600 font-medium text-center h-5"></div>
             </div>
         </div>
     </div>
@@ -678,7 +695,7 @@
             
     </py-script>
 
-    <!-- *** UPDATED: JAVASCRIPT FOR ALL UI (V19 - Default 50 rooms) *** -->
+    <!-- *** JAVASCRIPT FOR ALL UI (V27) *** -->
     <script>
         // --- Global localStorage Key ---
         const ROOM_CONFIG_KEY = 'examRoomConfig';
@@ -706,8 +723,9 @@
         const allNavButtons = [navExtractor, navSettings, navReports];
         const allViews = [viewExtractor, viewSettings, viewReports];
         
-        // --- Get references to Room Settings elements ---
-        const roomConfigInput = document.getElementById('room-config-input');
+        // --- (V26) Get references to NEW Room Settings elements ---
+        const roomConfigContainer = document.getElementById('room-config-container');
+        const addRoomButton = document.getElementById('add-room-button');
         const saveRoomConfigButton = document.getElementById('save-room-config-button');
         const roomConfigStatus = document.getElementById('room-config-status');
         
@@ -723,32 +741,15 @@
             return `${parts[0]}_${parts[1]}_${String(roomNumber).padStart(4, '0')}`;
         }
         
-        // --- Room config parsing functions ---
-        function parseRoomConfigText(text) {
-            const config = {};
-            const lines = text.split('\n');
-            lines.forEach(line => {
-                if (line.trim()) {
-                    const parts = line.split(':');
-                    if (parts.length === 2) {
-                        const roomName = parts[0].trim();
-                        const count = parseInt(parts[1].trim(), 10);
-                        if (roomName && !isNaN(count)) {
-                            config[roomName] = count;
-                        }
-                    }
-                }
-            });
-            return config;
-        }
-        
-        function formatRoomConfigText(config) {
-            const sortedKeys = Object.keys(config).sort((a, b) => {
-                const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
-                const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
-                return numA - numB;
-            });
-            return sortedKeys.map(key => `${key}: ${config[key]}`).join('\n');
+        // --- (V26) Helper function to create a new room row HTML ---
+        function createRoomRowHtml(roomName, capacity) {
+            return `
+                <div class="room-row flex items-center gap-3 p-2 border-b border-gray-200">
+                    <label class="room-name-label font-medium text-gray-700 w-24 shrink-0">${roomName}:</label>
+                    <input type="number" class="room-capacity-input block w-32 p-2 border border-gray-300 rounded-md shadow-sm text-sm" value="${capacity}" min="1" placeholder="30">
+                    <button class="remove-room-button ml-auto text-sm text-red-600 hover:text-red-800 font-medium">&times; Remove</button>
+                </div>
+            `;
         }
         
         // --- Room Capacity Loading Function ---
@@ -766,10 +767,10 @@
             let roomCapacities = [];
             
             if (Object.keys(roomConfig).length === 0) {
-                // *** UPDATED (V19): Default to 50 rooms ***
-                console.log("Using default room config (50 rooms of 30)");
-                roomNames = Array.from({length: 50}, (_, i) => `Room ${i + 1}`);
-                roomCapacities = Array(50).fill(30);
+                // *** (V27): Default to 30 rooms ***
+                console.log("Using default room config (30 rooms of 30)");
+                roomNames = Array.from({length: 30}, (_, i) => `Room ${i + 1}`);
+                roomCapacities = Array(30).fill(30);
             } else {
                 console.log("Using saved room config:", roomConfig);
                 const sortedRoomKeys = Object.keys(roomConfig).sort((a, b) => {
@@ -836,7 +837,8 @@
                         for (let i = masterRoomCaps.length; i < currentFills.length; i++) {
                             if (currentFills[i] < DEFAULT_OVERFLOW_CAPACITY) {
                                 currentFills[i]++;
-                                assignedRoomName = `Room ${i + 1} (Overflow)`;
+                                // *** (V27) Changed overflow naming ***
+                                assignedRoomName = `Room ${i + 1}`;
                                 foundOverflowSpot = true;
                                 break;
                             }
@@ -845,7 +847,8 @@
                         // 3c. If no existing overflow has space, create a *new* overflow
                         if (!foundOverflowSpot) {
                             currentFills.push(1); 
-                            assignedRoomName = `Room ${currentFills.length} (Overflow)`;
+                            // *** (V27) Changed overflow naming ***
+                            assignedRoomName = `Room ${currentFills.length}`;
                         }
                     }
                     
@@ -1066,22 +1069,44 @@
             clearReport(); // Always clear reports when switching views
         }
 
-        // --- ROOM SETTINGS LOGIC ---
+        // --- (V26) NEW ROOM SETTINGS LOGIC (DYNAMIC FORM) ---
+        
+        // --- (V26) Save from dynamic form ---
         saveRoomConfigButton.addEventListener('click', () => {
             try {
-                const configText = roomConfigInput.value;
-                const config = parseRoomConfigText(configText);
-                localStorage.setItem(ROOM_CONFIG_KEY, JSON.stringify(config));
-                roomConfigInput.value = formatRoomConfigText(config);
+                const newConfig = {};
+                const roomRows = roomConfigContainer.querySelectorAll('.room-row');
                 
+                roomRows.forEach(row => {
+                    const roomName = row.querySelector('.room-name-label').textContent.replace(':', '').trim();
+                    let capacity = parseInt(row.querySelector('.room-capacity-input').value, 10);
+                    
+                    // Default to 30 if blank or invalid
+                    if (isNaN(capacity) || capacity <= 0) {
+                        capacity = 30;
+                    }
+                    
+                    if (roomName) {
+                        newConfig[roomName] = capacity;
+                    }
+                });
+                
+                localStorage.setItem(ROOM_CONFIG_KEY, JSON.stringify(newConfig));
+                
+                // Show success message
                 roomConfigStatus.textContent = "Settings saved successfully!";
                 setTimeout(() => { roomConfigStatus.textContent = ""; }, 2000);
+                
+                // Reload the form to show normalized data (e.g., show the '30' in blank fields)
+                loadRoomConfig();
+                
             } catch (e) {
                 roomConfigStatus.textContent = "Error saving settings.";
                 console.error("Error saving room config:", e);
             }
         });
 
+        // --- (V26) Load data into dynamic form ---
         function loadRoomConfig() {
             let savedConfigJson = localStorage.getItem(ROOM_CONFIG_KEY);
             let config;
@@ -1098,17 +1123,58 @@
             }
             
             if (Object.keys(config).length === 0) {
-                // *** UPDATED (V19): Default to 50 rooms ***
-                console.log("Using default room config (50 rooms of 30)");
+                // *** (V27): Default to 30 rooms ***
+                console.log("Using default room config (30 rooms of 30)");
                 config = {};
-                for (let i = 1; i <= 50; i++) {
+                for (let i = 1; i <= 30; i++) {
                     config[`Room ${i}`] = 30;
                 }
                 localStorage.setItem(ROOM_CONFIG_KEY, JSON.stringify(config));
             }
             
-            roomConfigInput.value = formatRoomConfigText(config);
+            // Populate the dynamic form
+            roomConfigContainer.innerHTML = ''; // Clear existing rows
+            const sortedKeys = Object.keys(config).sort((a, b) => {
+                const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
+                const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
+                return numA - numB;
+            });
+            
+            sortedKeys.forEach(roomName => {
+                const capacity = config[roomName];
+                const rowHtml = createRoomRowHtml(roomName, capacity);
+                roomConfigContainer.insertAdjacentHTML('beforeend', rowHtml);
+            });
         }
+        
+        // --- (V26) Add New Room Button ---
+        addRoomButton.addEventListener('click', () => {
+            const allRows = roomConfigContainer.querySelectorAll('.room-row');
+            let newName = "Room 1";
+            
+            if (allRows.length > 0) {
+                const lastRow = allRows[allRows.length - 1];
+                const lastName = lastRow.querySelector('.room-name-label').textContent.replace(':', '').trim();
+                let lastNum = 0;
+                try {
+                    lastNum = parseInt(lastName.match(/(\d+)/)[0], 10);
+                } catch(e) {
+                    lastNum = allRows.length; // Fallback
+                }
+                newName = `Room ${lastNum + 1}`;
+            }
+            
+            const newRowHtml = createRoomRowHtml(newName, 30); // Default to 30
+            roomConfigContainer.insertAdjacentHTML('beforeend', newRowHtml);
+        });
+        
+        // --- (V26) Remove Room Button (Event Delegation) ---
+        roomConfigContainer.addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-room-button')) {
+                e.target.closest('.room-row').remove();
+            }
+        });
+        
         
         // --- Q-PAPER REPORT LOGIC ---
         generateQPaperReportButton.addEventListener('click', async () => {
@@ -1214,4 +1280,3 @@
 
 </body>
 </html>
-
