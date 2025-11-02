@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Title -->
-    <title>UOC Exam Management V86</title>
+    <title>UOC Exam Management V87 (QP-Fix)</title>
     
     <!-- Load Tailwind CSS for styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn-tailwindcss.vercel.app/"></script>
     
     <!-- Load PyScript -->
     <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
@@ -29,10 +29,11 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* --- Navigation Styles (V86: Unique Colors) --- */
+        /* --- Navigation Styles (V87: Rounder, Bigger) --- */
         .nav-button {
             /* Base styles for all nav buttons */
-            @apply py-2 px-4 rounded-t-lg text-sm font-medium transition-all duration-200 text-white shadow; 
+            /* V87: More rounded, more padding, bolder font */
+            @apply py-2.5 px-5 rounded-t-xl text-sm font-semibold transition-all duration-200 text-white shadow; 
         }
         .nav-button-active {
             /* Active state: Taller, lighter bg, dark text */
@@ -489,7 +490,8 @@
     <nav id="main-nav" class="bg-indigo-600 text-white sticky top-0 z-50 shadow-lg">
         <!-- V83: Top Banner (Spanning Width, Centered Title) -->
         <div id="top-banner" class="w-full bg-indigo-700 text-center py-2">
-            <h1 class="text-xl font-extrabold tracking-wider text-white">UOC Exam Management (V85)</h1>
+            <!-- V87: Updated Title -->
+            <h1 class="text-xl font-extrabold tracking-wider text-white">UOC Exam Management (V87)</h1>
         </div>
         
         <!-- V83: Navigation Tabs (Below Banner) -->
@@ -2669,15 +2671,24 @@
             absenteeSearchInput.value = student['Register Number'];
             autocompleteResults.classList.add('hidden');
             
-            // Perform allocation to find room
-            const allocatedData = performRoomAllocation([student]);
-            const allocatedStudent = allocatedData[0];
-            const roomInfo = currentRoomConfig[allocatedStudent['Room No']];
+            // V87 FIX: Allocate rooms for the *entire* session to find the correct room
+            const sessionKey = sessionSelect.value;
+            const [date, time] = sessionKey.split(' | ');
+            const sessionStudents = allStudentData.filter(s => s.Date === date && s.Time === time);
+            
+            // Perform allocation on the *entire* session
+            const allocatedSessionData = performRoomAllocation(sessionStudents);
+            
+            // Find our selected student in the allocated list
+            const allocatedStudent = allocatedSessionData.find(s => s['Register Number'] === student['Register Number']);
+            
+            const roomNo = allocatedStudent ? allocatedStudent['Room No'] : 'N/A';
+            const roomInfo = currentRoomConfig[roomNo];
             const location = (roomInfo && roomInfo.location) ? `(${roomInfo.location})` : "";
             
             selectedStudentName.textContent = student.Name;
             selectedStudentCourse.textContent = student.Course;
-            selectedStudentRoom.textContent = `Room: ${allocatedStudent['Room No']} ${location}`;
+            selectedStudentRoom.textContent = `Room: ${roomNo} ${location}`; // Use the correctly allocated room
             selectedStudentDetails.classList.remove('hidden');
         }
         
@@ -2849,7 +2860,8 @@
             loadQPCodes();
             
             // 4. Populate the UI
-            qpCodeContainer.innerHTML = ''; // Clear old
+            // V87 FIX: Build HTML in an array and set innerHTML once to prevent parsing bugs.
+            const htmlChunks = [];
             
             if (uniqueCoursesArray.length === 0) {
                 qpCodeContainer.innerHTML = '<p class="text-center text-gray-500">No courses found for this session.</p>';
@@ -2862,7 +2874,8 @@
                 const cleanKey = cleanCourseKey(courseName);
                 const savedCode = qpCodeMap[cleanKey] || "";
                 
-                qpCodeContainer.innerHTML += `
+                // V87: Push to array
+                htmlChunks.push(`
                     <div class="flex items-center gap-3 p-2 border-b border-gray-200">
                         <label class="font-medium text-gray-700 w-2/3 text-sm">${courseName}</label>
                         <input type="text" 
@@ -2871,8 +2884,12 @@
                                data-course="${cleanKey}" 
                                placeholder="Enter QP Code">
                     </div>
-                `;
+                `);
             });
+            
+            // V87: Set innerHTML only once
+            qpCodeContainer.innerHTML = htmlChunks.join('');
+            
             saveQpCodesButton.disabled = false; // V62: Enable save button once list is rendered
             qpCodeStatus.textContent = ''; // V62: Clear status on new load
         }
@@ -2885,16 +2902,25 @@
             // V83 FIX: Use a robust iteration method to ensure all inputs, including first/last, are processed
             let saveCount = 0;
             
-            qpInputs.forEach(input => {
+            // *** QP-FIX: Replaced forEach with a standard for loop for robustness ***
+            for (let i = 0; i < qpInputs.length; i++) {
+                const input = qpInputs[i];
                 // V74 FIX: The data-course attribute is already clean, so use it as the key
                 const courseKey = input.dataset.course; 
                 const qpCode = input.value.trim();
 
                 if (courseKey) {
-                    qpCodeMap[courseKey] = qpCode; 
+                    // Update the global map. Only non-empty codes are saved.
+                    if (qpCode) {
+                        qpCodeMap[courseKey] = qpCode;
+                    } else {
+                        // If code is cleared, remove it from the map
+                        delete qpCodeMap[courseKey];
+                    }
                     saveCount++;
                 }
-            });
+            }
+            // *** END QP-FIX ***
 
             // 2. Commit the global map (which was just updated) to localStorage
             localStorage.setItem(QP_CODE_LIST_KEY, JSON.stringify(qpCodeMap));
@@ -2915,7 +2941,12 @@
                 
                 if (courseName) {
                     // Update global map immediately (in memory)
-                    qpCodeMap[courseName] = qpCode;
+                    if (qpCode) {
+                        qpCodeMap[courseName] = qpCode;
+                    } else {
+                        // If code is cleared, remove it from the map
+                        delete qpCodeMap[courseName];
+                    }
                     
                     // Show pending status
                     qpCodeStatus.classList.remove('text-green-600');
