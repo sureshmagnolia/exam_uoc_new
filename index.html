@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Title -->
-    <title>UOC Exam Management V58</title>
+    <title>UOC Exam Management V63</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -17,7 +17,7 @@
     <style>
         /* Loading Spinner Animation */
         .loader-spin {
-            border: 4px solid #f3f3f3; /* Light grey ys */
+            border: 4px solid #f3f3f3; /* Light grey */
             border-top: 4px solid #3b82f6; /* Blue */
             border-radius: 50%;
             width: 24px;
@@ -44,7 +44,7 @@
         /* --- PRINT STYLES --- */
         @media print {
             /* Hide the main app container and all other non-report elements */
-            #main-nav, #view-extractor, #view-settings, #view-reports, #view-absentees, body > py-config, body > py-script, #report-controls {
+            #main-nav, #view-extractor, #view-settings, #view-reports, #view-absentees, #view-qpcodes, body > py-config, body > py-script, #report-controls {
                 display: none !important; /* Be forceful */
             }
             
@@ -419,16 +419,17 @@
 </head>
 <body class="bg-gray-100 font-sans">
     
-    <!-- *** Main Navigation Bar (V56 Update: Absentees) *** -->
+    <!-- *** Main Navigation Bar (V58 Update: QP Codes) *** -->
     <nav id="main-nav" class="bg-gray-800 text-white p-4 sticky top-0 z-50">
         <div class="container max-w-2xl mx-auto flex justify-between items-center">
-            <!-- V58: Title Update -->
-            <h1 class="text-lg font-bold text-white bg-red-600 px-3 py-1 rounded-md shadow-md">UOC Exam Management (V58)</h1>
+            <!-- V60: Title Update -->
+            <h1 class="text-lg font-bold text-white bg-red-600 px-3 py-1 rounded-md shadow-md">UOC Exam Management (V60)</h1>
             
             <!-- Navigation buttons on the right -->
             <div class="flex gap-4">
                 <button id="nav-extractor" class="nav-button nav-button-active">Main Extractor</button>
                 <button id="nav-settings" class="nav-button nav-button-inactive">Room Settings</button>
+                <button id="nav-qpcodes" class="nav-button nav-button-inactive">QP Codes</button>
                 <button id="nav-reports" class="nav-button nav-button-inactive">Reports</button>
                 <button id="nav-absentees" class="nav-button nav-button-inactive">Absentees</button>
             </div>
@@ -450,6 +451,7 @@
                     <li>Click 'Select PDF Files' and choose 1 or 100+ PDF files.</li>
                     <li>Click 'Run Batch Extraction'. Check the **Status Log** for errors.</li>
                     <li>Click 'Download Combined_Nominal_Roll.csv' for raw data.</li>
+                    <li>(Optional) Go to **QP Codes** to assign codes to each course.</li>
                     <li>Go to **Reports** to generate seating lists, day-wise lists, and question paper counts.</li>
                     <li>Go to **Absentees** to mark absentees and generate the final statement.</li>
                 </ol>
@@ -541,7 +543,58 @@
         </div>
     </div>
     
-    <!-- *** "Reports" View (V58 Update: Added Session Filter) *** -->
+    <!-- *** (V61) "QP Codes" View - Now Session Aware *** -->
+    <div id="view-qpcodes" class="container max-w-2xl mx-auto p-4 min-h-screen hidden">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">QP Code Settings</h1>
+            
+            <div id="qpcode-content-wrapper" class="hidden">
+                <!-- V61: Session Selector for QP Codes -->
+                <div class="mb-4">
+                    <label for="session-select-qp" class="block text-sm font-medium text-gray-700 mb-1">Select Exam Session:</label>
+                    <select id="session-select-qp" class="block w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm">
+                        <option value="">-- Select a Session --</option>
+                    </select>
+                </div>
+
+                <div id="qp-entry-section" class="hidden">
+                    <p class="text-gray-600 mb-4">
+                        Assign a Question Paper (QP) Code to each course. This code will be used in the Absentee Statement.
+                        **Click 'Save QP Codes' below to commit changes to local memory.**
+                    </p>
+                
+                    <!-- Dynamic Form Container -->
+                    <div class="space-y-4">
+                        <!-- Header for the form -->
+                        <div class="flex items-center gap-3 px-2">
+                            <label class="font-semibold text-gray-700 w-2/3">Course Name</label>
+                            <label class="font-semibold text-gray-700 w-1/3">QP Code</label>
+                        </div>
+                        
+                        <!-- Container where course rows will be injected -->
+                        <div id="qp-code-container" class="space-y-2 max-h-96 overflow-y-auto pr-2">
+                            <!-- Rows will be added by JavaScript -->
+                        </div>
+                    </div>
+                    <!-- V62: Status message for unsaved changes -->
+                    <div id="qp-code-status" class="text-sm text-green-600 font-medium text-center h-5 mt-4"></div>
+                    
+                    <!-- V62: NEW SAVE BUTTON -->
+                    <button id="save-qp-codes-button" class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-indigo-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 mt-4">
+                        Save QP Codes
+                    </button>
+                </div>
+
+            </div>
+            
+            <div id="qpcode-loader" class="text-center text-gray-600">
+                <p>Please run a data extraction or load a corrected CSV to enable this feature.</p>
+            </div>
+            
+        </div>
+    </div>
+    
+    <!-- *** "Reports" View (V33 Update: Added CSV Upload) *** -->
     <div id="view-reports" class="container max-w-2xl mx-auto p-4 min-h-screen hidden">
         <div class="bg-white p-8 rounded-lg shadow-xl w-full">
             <h1 class="text-3xl font-bold text-gray-800 mb-6">Reports</h1>
@@ -567,17 +620,6 @@
                 <span id="csv-load-status" class="text-sm font-medium text-green-600 mt-2 block h-5"></span>
             </div>
             <!-- END V33 Section -->
-            
-            <!-- V58: New Session Filter Section -->
-            <div class="bg-gray-50 border border-gray-200 p-4 rounded-md mb-6">
-                <label for="report-session-select" class="block text-sm font-medium text-gray-700 mb-1">Select Exam Session to Report On:</label>
-                <select id="report-session-select" class="block w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm">
-                    <option value="ALL">All Sessions (Bulk Print)</option>
-                    <!-- Sessions will be populated by JS -->
-                </select>
-                <p class="text-xs text-gray-500 mt-1">Select a single session to print for just that day/time.</p>
-            </div>
-            <!-- END V58 Section -->
 
             <p class="text-gray-600 mb-4">
                 Generate reports based on the last batch extraction. (Buttons are enabled after extraction or CSV load.)
@@ -685,7 +727,7 @@
         packages = ["pandas", "pdfplumber==0.9.0"]
     </py-config>
     
-    <!-- *** Python Script (V58 - Data Persistence) *** -->
+    <!-- *** Python Script (V60 - COURSE NORMALIZER) *** -->
     <py-script>
         import pandas as pd
         import pdfplumber
@@ -720,6 +762,9 @@
         # V56: Absentee view elements
         absentee_loader = document.getElementById("absentee-loader")
         absentee_content_wrapper = document.getElementById("absentee-content-wrapper")
+        # V58: QP Code view elements
+        qpcode_loader = document.getElementById("qpcode-loader")
+        qpcode_content_wrapper = document.getElementById("qpcode-content-wrapper")
         
         ROOM_CONFIG_KEY = 'examRoomConfig'
         COLLEGE_NAME_KEY = 'examCollegeName' # V48: New key
@@ -771,7 +816,37 @@
                 return (date_obj, time_obj)
             except ValueError as e:
                 console.log(f"Sort Error: Could not parse Date '{row['Date']}' or Time '{row['Time']}'. Error: {e}")
-                return (datetime.min, datetime.min) 
+                return (datetime.min, datetime.min)
+        
+        # --- V60: COURSE NAME NORMALIZER ---
+        def normalize_course_name(course_name):
+            """Attempts to find a course code and standardize the name."""
+            course_name = course_name.strip().replace('\n', ' ')
+            
+            # 1. Regex to find a course code, e.g., (ECO5B07) or [BCM5B07]
+            # This looks for 3 letters, a number, a letter, and 2 numbers
+            code_match = re.search(r'[\[\(-]{2}([A-Z]{3}\d[A-Z]\d{2,})[\]\)-]{2}', course_name, re.IGNORECASE)
+            if not code_match:
+                code_match = re.search(r'([A-Z]{3}\d[A-Z]\d{2,})', course_name, re.IGNORECASE)
+
+            if code_match:
+                code = code_match.group(1).upper()
+                
+                # 2. Extract the "clean name" part
+                # Take everything before the match, or before common markers
+                clean_name = course_name
+                stop_markers = ['(', '[', '/']
+                for marker in stop_markers:
+                    if marker in clean_name:
+                        clean_name = clean_name.split(marker)[0]
+                
+                clean_name = clean_name.strip().replace('--', '').replace(':', '').upper()
+                
+                # 3. Rebuild the standardized name
+                return f"{clean_name}--({code})"
+            
+            # If no code found, just return the cleaned-up original
+            return re.sub(r'\s+', ' ', course_name).strip().upper()
 
         # --- V40: STATEFUL PARSER for the "NEW" PDF format ---
         def extract_new_format_header(page_text):
@@ -931,9 +1006,6 @@
                 
                 # V33: Clear the CSV upload status
                 js.clear_csv_upload_status() # This needs the global 'js'
-                
-                # V58: Clear persistent data
-                js.clear_persistent_data() 
                     
                 # Call the main logic function
                 await run_extraction_py()
@@ -956,6 +1028,7 @@
                 generate_qpaper_report_button.disabled = True
                 generate_daywise_report_button.disabled = True
                 js.disable_absentee_tab(True) # V56: Disable absentee tab
+                js.disable_qpcode_tab(True) # V58: Disable QP Code tab
                 json_data_store.innerHTML = ""
                 q_paper_data_store.innerHTML = ""
                 status_div.innerHTML = ""
@@ -1007,7 +1080,8 @@
                             # V57: FIX - Robust check for "New Format"
                             # Check for the unique, quoted, CSV-style header.
                             page1_text_flat = page1_text.replace("\n", "")
-                            if '"SI.No","Reg.No","Name"' in page1_text_flat or '"SI.No" ,"Reg.No" ,"Name"' in page1_text_flat:
+                            # V57: Now using Reg.No, Name, D.O.B check
+                            if '"SI.No","Reg.No","Name","D.O.B"' in page1_text_flat or '"SI.No" ,"Reg.No" ,"Name" ,"D.O.B"' in page1_text_flat:
                                 # This is DEFINITELY the NEW format
                                 is_new_format = True
                                 file_date, file_time, file_course = extract_new_format_header(page1_text)
@@ -1049,7 +1123,7 @@
                                         all_exam_rows.append({
                                             'Date': file_date,
                                             'Time': file_time,
-                                            'Course': file_course,
+                                            'Course': file_course, # This is the "dirty" name
                                             'Register Number': student['Register Number'],
                                             'Name': student['Name']
                                         })
@@ -1074,6 +1148,17 @@
                 # --- 3. Sorting ---
                 log_message(f"Found {len(all_exam_rows)} total candidates from {total_files} file(s).")
                 await asyncio.sleep(0)
+                
+                # --- 4. V60: NORMALIZE COURSE NAMES ---
+                log_message("Normalizing course names...")
+                normalized_rows = []
+                for row in all_exam_rows:
+                    normalized_course = normalize_course_name(row['Course'])
+                    row['Course'] = normalized_course
+                    normalized_rows.append(row)
+                all_exam_rows = normalized_rows
+                log_message("Course names normalized.")
+                
                 log_message("Sorting all entries by Date and Time...")
                 all_exam_rows_sorted = sorted(all_exam_rows, key=get_sort_key)
                 await asyncio.sleep(0)
@@ -1108,14 +1193,15 @@
                 """
                 
                 json_data = json.dumps(all_exam_rows_sorted)
-                # V58: Call JS helper to save to localStorage
-                js.save_data_to_storage(json_data) 
+                json_data_store.innerHTML = json_data
                 
                 generate_report_button.disabled = False
                 generate_qpaper_report_button.disabled = False
                 generate_daywise_report_button.disabled = False
                 js.disable_absentee_tab(False) # V56: Enable absentee tab
+                js.disable_qpcode_tab(False) # V58: Enable QP Code tab
                 js.populate_session_dropdown() # V56: Populate dropdown
+                js.populate_qp_code_session_dropdown() # V61: Populate QP Code dropdown
                                 
                 log_message("Success! Your combined files are ready.")
             
@@ -1134,13 +1220,13 @@
             
     </py-script>
 
-    <!-- *** JAVASCRIPT FOR ALL UI (V58) *** -->
+    <!-- *** JAVASCRIPT FOR ALL UI (V63) *** -->
     <script>
         // --- Global localStorage Key ---
         const ROOM_CONFIG_KEY = 'examRoomConfig';
         const COLLEGE_NAME_KEY = 'examCollegeName'; // V48: New key
         const ABSENTEE_LIST_KEY = 'examAbsenteeList'; // V56: New key
-        const MAIN_DATA_STORE_KEY = 'uocExamMainData'; // V58: New key
+        const QP_CODE_LIST_KEY = 'examQPCodes'; // V58: New key
 
         // --- Global var to hold data from the last *report run* ---
         let lastGeneratedRoomData = [];
@@ -1156,6 +1242,10 @@
         let allStudentSessions = []; // Holds unique sessions
         let currentAbsenteeList = []; // Holds absentees for the selected session
         let selectedStudent = null; // Holds student from autocomplete
+        
+        // --- (V58) Global var for QP Code data ---
+        let allUniqueCourses = [];
+        let qpCodeMap = {}; // Holds { "Course Name": "QPCode" }
 
         // --- Get references to all Report elements ---
         const generateReportButton = document.getElementById('generate-report-button');
@@ -1166,19 +1256,20 @@
         const finalPrintButton = document.getElementById('final-print-button');
         const clearReportButton = document.getElementById('clear-report-button');
         const roomCsvDownloadContainer = document.getElementById('room-csv-download-container');
-        const reportSessionSelect = document.getElementById('report-session-select'); // V58
         
         // --- Get references to all Navigation elements ---
         const viewExtractor = document.getElementById('view-extractor');
         const viewSettings = document.getElementById('view-settings');
+        const viewQPCodes = document.getElementById('view-qpcodes'); // V58
         const viewReports = document.getElementById('view-reports');
         const viewAbsentees = document.getElementById('view-absentees'); // V56
         const navExtractor = document.getElementById('nav-extractor');
         const navSettings = document.getElementById('nav-settings');
+        const navQPCodes = document.getElementById('nav-qpcodes'); // V58
         const navReports = document.getElementById('nav-reports');
         const navAbsentees = document.getElementById('nav-absentees'); // V56
-        const allNavButtons = [navExtractor, navSettings, navReports, navAbsentees]; // V56
-        const allViews = [viewExtractor, viewSettings, viewReports, viewAbsentees]; // V56
+        const allNavButtons = [navExtractor, navSettings, navQPCodes, navReports, navAbsentees]; // V58
+        const allViews = [viewExtractor, viewSettings, viewQPCodes, viewReports, viewAbsentees]; // V58
         
         // --- (V26) Get references to NEW Room Settings elements ---
         const collegeNameInput = document.getElementById('college-name-input'); // V48
@@ -1214,6 +1305,15 @@
         const absenteeListSection = document.getElementById('absentee-list-section');
         const currentAbsenteeListDiv = document.getElementById('current-absentee-list');
         const generateAbsenteeReportButton = document.getElementById('generate-absentee-report-button');
+        
+        // --- (V58) Get references to QP Code elements ---
+        const qpcodeLoader = document.getElementById('qpcode-loader');
+        const qpcodeContentWrapper = document.getElementById('qpcode-content-wrapper');
+        const sessionSelectQP = document.getElementById('session-select-qp'); // V61
+        const qpEntrySection = document.getElementById('qp-entry-section'); // V61
+        const qpCodeContainer = document.getElementById('qp-code-container');
+        const qpCodeStatus = document.getElementById('qp-code-status');
+        const saveQpCodesButton = document.getElementById('save-qp-codes-button'); // V62
 
         
         // --- Helper function to numerically sort room keys ---
@@ -1350,23 +1450,15 @@
             await new Promise(resolve => setTimeout(resolve, 50));
 
             try {
-                // V58: Filter data based on session dropdown
-                const selectedSession = reportSessionSelect.value;
-                let data = JSON.parse(jsonDataStore.innerHTML);
-                
-                if (selectedSession !== "ALL") {
-                    const [date, time] = selectedSession.split(' | ');
-                    data = data.filter(s => s.Date === date && s.Time === time);
-                }
-                // End V58 filter
-
+                // 1. Get RAW student data
+                const data = JSON.parse(jsonDataStore.innerHTML);
                 if (!data || data.length === 0) {
-                    alert("No data found for the selected session. Please run extraction or load a CSV.");
+                    alert("No data to generate. Please run extraction first.");
                     return;
                 }
                 
                 // 2. Perform Room Allocation (V29 - uses central function)
-                const processed_rows_with_rooms = performRoomAllocation(data); // V58: Use filtered data
+                const processed_rows_with_rooms = performRoomAllocation(data);
                 
                 // 3. Store data for CSV
                 lastGeneratedRoomData = processed_rows_with_rooms;
@@ -1531,23 +1623,15 @@
             await new Promise(resolve => setTimeout(resolve, 50));
 
             try {
-                // V58: Filter data based on session dropdown
-                const selectedSession = reportSessionSelect.value;
-                let data = JSON.parse(jsonDataStore.innerHTML);
-                
-                if (selectedSession !== "ALL") {
-                    const [date, time] = selectedSession.split(' | ');
-                    data = data.filter(s => s.Date === date && s.Time === time);
-                }
-                // End V58 filter
-
+                // 1. Get RAW student data
+                const data = JSON.parse(jsonDataStore.innerHTML);
                 if (!data || data.length === 0) {
-                    alert("No data to generate for the selected session. Please run extraction or load a CSV.");
+                    alert("No data to generate. Please run extraction first.");
                     return;
                 }
                 
                 // 2. Perform Room Allocation (V29 - uses central function)
-                const processed_rows_with_rooms = performRoomAllocation(data); // V58: Use filtered data
+                const processed_rows_with_rooms = performRoomAllocation(data);
 
                 // 3. Group by Room to get SL No.
                 const roomSessions = {};
@@ -1755,14 +1839,18 @@
                 let totalPages = 0;
                 const sortedCourses = Object.keys(courses).sort();
                 
+                // V58: Load QP codes
+                loadQPCodes(); // Ensure qpCodeMap is up-to-date
+                
                 for (const courseName of sortedCourses) {
                     totalPages++;
                     const courseData = courses[courseName];
+                    const qpCode = qpCodeMap[courseName] || "____"; // V58: Get QP code
                     
                     // V57: Add page break logic. Each course is a new page.
                     allPagesHtml += `
                         <div class="print-page">
-                            <!-- V58: Header repeated on each page -->
+                            <!-- V57: Header repeated on each page -->
                             <h1>${currentCollegeName}</h1>
                             <h2>Absentee Statement</h2>
                             <h3>${date} &nbsp;|&nbsp; ${time}</h3>
@@ -1770,7 +1858,8 @@
                             <table class="absentee-report-table">
                                 <thead>
                                     <tr>
-                                        <th colspan="2">Course: ${courseName}</th>
+                                        <!-- V58: Added QP Code -->
+                                        <th colspan="2">Course: ${courseName} &nbsp;&nbsp; [ QP Code: ${qpCode} ]</th>
                                     </tr>
                                     <tr>
                                         <th>Status</th>
@@ -1878,6 +1967,7 @@
         // --- NAVIGATION VIEW-SWITCHING LOGIC ---
         navExtractor.addEventListener('click', () => showView(viewExtractor, navExtractor));
         navSettings.addEventListener('click', () => showView(viewSettings, navSettings));
+        navQPCodes.addEventListener('click', () => showView(viewQPCodes, navQPCodes)); // V58
         navReports.addEventListener('click', () => showView(viewReports, navReports));
         navAbsentees.addEventListener('click', () => showView(viewAbsentees, navAbsentees)); // V56
         
@@ -2031,18 +2121,9 @@
             await new Promise(resolve => setTimeout(resolve, 50));
             
             try {
-                // V58: Filter data based on session dropdown
-                const selectedSession = reportSessionSelect.value;
-                let data = JSON.parse(qPaperDataStore.innerHTML);
-
-                if (selectedSession !== "ALL") {
-                    const [date, time] = selectedSession.split(' | ');
-                    data = data.filter(s => s.Date === date && s.Time === time);
-                }
-                // End V58 filter
-                
+                const data = JSON.parse(qPaperDataStore.innerHTML);
                 if (!data || data.length === 0) {
-                    alert("No question paper data found for the selected session.");
+                    alert("No question paper data found. Please run an extraction first.");
                     return;
                 }
                 
@@ -2132,22 +2213,9 @@
         // V33: Function called by Python to clear the CSV upload status
         function clear_csv_upload_status() {
             csvLoadStatus.textContent = "";
-            correctedCsvUpload.value = ""; // Clear the file input
-        }
-        
-        // V58: Function called by Python to clear persistent data
-        function clear_persistent_data() {
-            localStorage.removeItem(MAIN_DATA_STORE_KEY);
-            jsonDataStore.innerHTML = "";
-            qPaperDataStore.innerHTML = "";
-            console.log("Cleared persistent data.");
-        }
-        
-        // V58: Function called by Python to save data
-        function save_data_to_storage(jsonData) {
-            localStorage.setItem(MAIN_DATA_STORE_KEY, jsonData);
-            jsonDataStore.innerHTML = jsonData; // Also update the div
-            console.log("Saved main data to localStorage.");
+            if (correctedCsvUpload) {
+                correctedCsvUpload.value = ""; // Clear the file input
+            }
         }
 
         // V33: Add event listener for the new "Load CSV" button
@@ -2208,7 +2276,7 @@
                     const student = {
                         'Date': values[dateIndex],
                         'Time': values[timeIndex],
-                        'Course': values[courseIndex],
+                        'Course': values[courseIndex], // V60: This name should be normalized already
                         'Register Number': values[regNumIndex],
                         'Name': values[nameIndex]
                     };
@@ -2231,10 +2299,8 @@
                 const qPaperArray = Object.values(qPaperSummary);
 
                 // --- Update Data Stores ---
-                const jsonDataString = JSON.stringify(jsonData);
-                jsonDataStore.innerHTML = jsonDataString;
+                jsonDataStore.innerHTML = JSON.stringify(jsonData);
                 qPaperDataStore.innerHTML = JSON.stringify(qPaperArray);
-                localStorage.setItem(MAIN_DATA_STORE_KEY, jsonDataString); // V58: Save to storage
                 
                 // --- Update UI ---
                 csvLoadStatus.textContent = `Successfully loaded and parsed ${jsonData.length} student records.`;
@@ -2249,6 +2315,10 @@
                 // V56: Enable and populate absentee tab
                 disable_absentee_tab(false);
                 populate_session_dropdown();
+                
+                // V61: Enable and populate QP Code tab
+                disable_qpcode_tab(false);
+                populate_qp_code_session_dropdown();
 
             } catch (e) {
                 console.error("Error parsing CSV:", e);
@@ -2286,9 +2356,7 @@
                 const sessions = new Set(allStudentData.map(s => `${s.Date} | ${s.Time}`));
                 allStudentSessions = Array.from(sessions).sort();
                 
-                // V58: Clear both dropdowns
-                sessionSelect.innerHTML = '<option value="">-- Select a Session --</option>';
-                reportSessionSelect.innerHTML = '<option value="ALL">All Sessions (Bulk Print)</option>';
+                sessionSelect.innerHTML = '<option value="">-- Select a Session --</option>'; // Clear
                 
                 // Find today's session
                 const today = new Date();
@@ -2296,10 +2364,7 @@
                 let defaultSession = "";
                 
                 allStudentSessions.forEach(session => {
-                    const optionHtml = `<option value="${session}">${session}</option>`;
-                    sessionSelect.innerHTML += optionHtml;
-                    reportSessionSelect.innerHTML += optionHtml; // V58
-                    
+                    sessionSelect.innerHTML += `<option value="${session}">${session}</option>`;
                     if (session.startsWith(todayStr)) {
                         defaultSession = session;
                     }
@@ -2307,7 +2372,6 @@
                 
                 if (defaultSession) {
                     sessionSelect.value = defaultSession;
-                    reportSessionSelect.value = defaultSession; // V58
                     sessionSelect.dispatchEvent(new Event('change')); // Trigger change to load list
                 }
 
@@ -2443,61 +2507,174 @@
             renderAbsenteeList();
         }
         
-        // --- (V58) NEW Function to load persistent data on startup ---
-        function loadDataFromStorage() {
-            const savedData = localStorage.getItem(MAIN_DATA_STORE_KEY);
-            if (!savedData) {
-                console.log("No persistent data found.");
-                disable_absentee_tab(true);
-                return;
-            }
-
-            console.log("Found persistent data. Loading...");
-            try {
-                // 1. Load main data
-                jsonDataStore.innerHTML = savedData;
-                const jsonData = JSON.parse(savedData);
-                allStudentData = jsonData; // V56: Populate global var
-
-                // 2. Re-calculate Q-Paper summary
-                const qPaperSummary = {};
-                for (const student of jsonData) {
-                    const key = `${student.Date}_${student.Time}_${student.Course}`;
-                    if (!qPaperSummary[key]) {
-                        qPaperSummary[key] = { 
-                            Date: student.Date, 
-                            Time: student.Time, 
-                            Course: student.Course, 
-                            'Student Count': 0 
-                        };
-                    }
-                    qPaperSummary[key]['Student Count']++;
-                }
-                qPaperDataStore.innerHTML = JSON.stringify(Object.values(qPaperSummary));
-                
-                // 3. Enable all report/absentee functions
-                generateReportButton.disabled = false;
-                generateQPaperReportButton.disabled = false;
-                generateDaywiseReportButton.disabled = false;
-                
-                disable_absentee_tab(false);
-                populate_session_dropdown();
-                
-                console.log(`Loaded ${jsonData.length} records from storage.`);
-                
-            } catch(e) {
-                console.error("Failed to load persistent data:", e);
-                localStorage.removeItem(MAIN_DATA_STORE_KEY); // Clear corrupted data
+        // --- (V61) NEW QP CODE LOGIC (Session-Aware) ---
+        
+        function disable_qpcode_tab(disabled) {
+            navQPCodes.disabled = disabled;
+            if (disabled) {
+                qpcodeLoader.classList.remove('hidden');
+                qpcodeContentWrapper.classList.add('hidden');
+                navQPCodes.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                qpcodeLoader.classList.add('hidden');
+                qpcodeContentWrapper.classList.remove('hidden');
+                navQPCodes.classList.remove('opacity-50', 'cursor-not-allowed');
             }
         }
         
+        function loadQPCodes() {
+            qpCodeMap = JSON.parse(localStorage.getItem(QP_CODE_LIST_KEY) || '{}');
+        }
+        
+        // V61: Populates the QP Code session dropdown
+        function populate_qp_code_session_dropdown() {
+            try {
+                if (allStudentData.length === 0) {
+                     allStudentData = JSON.parse(jsonDataStore.innerHTML || '[]');
+                }
+                if (allStudentData.length === 0) {
+                    disable_qpcode_tab(true);
+                    return;
+                }
+                
+                // Get unique sessions (same as absentee tab)
+                const sessions = new Set(allStudentData.map(s => `${s.Date} | ${s.Time}`));
+                allStudentSessions = Array.from(sessions).sort();
+                
+                sessionSelectQP.innerHTML = '<option value="">-- Select a Session --</option>'; // Clear
+                
+                // Find today's session
+                const today = new Date();
+                const todayStr = today.toLocaleDateString('en-GB').replace(/\//g, '.'); // DD.MM.YYYY
+                let defaultSession = "";
+                
+                allStudentSessions.forEach(session => {
+                    sessionSelectQP.innerHTML += `<option value="${session}">${session}</option>`;
+                    if (session.startsWith(todayStr)) {
+                        defaultSession = session;
+                    }
+                });
+                
+                if (defaultSession) {
+                    sessionSelectQP.value = defaultSession;
+                    sessionSelectQP.dispatchEvent(new Event('change')); // Trigger change to load course list
+                }
+
+            } catch (e) {
+                console.error("Failed to populate QP sessions:", e);
+                disable_qpcode_tab(true);
+            }
+        }
+
+        // V61: Event listener for the QP Code session dropdown
+        sessionSelectQP.addEventListener('change', () => {
+            const sessionKey = sessionSelectQP.value;
+            if (sessionKey) {
+                qpEntrySection.classList.remove('hidden');
+                render_qp_code_list(sessionKey);
+            } else {
+                qpEntrySection.classList.add('hidden');
+                qpCodeContainer.innerHTML = '';
+                qpCodeStatus.textContent = '';
+                saveQpCodesButton.disabled = true; // V62: Disable save button
+            }
+        });
+        
+        // V61: Renders the course list for the selected session
+        function render_qp_code_list(sessionKey) {
+            
+            // 1. Filter students for this specific session
+            const [date, time] = sessionKey.split(' | ');
+            const sessionStudents = allStudentData.filter(s => s.Date === date && s.Time === time);
+            
+            // 2. Get unique courses for this session
+            const sessionCourses = new Set(sessionStudents.map(s => s.Course));
+            const uniqueCoursesArray = Array.from(sessionCourses).sort();
+            
+            // 3. Load saved codes
+            loadQPCodes();
+            
+            // 4. Populate the UI
+            qpCodeContainer.innerHTML = ''; // Clear old
+            
+            if (uniqueCoursesArray.length === 0) {
+                qpCodeContainer.innerHTML = '<p class="text-center text-gray-500">No courses found for this session.</p>';
+                saveQpCodesButton.disabled = true; // V62: Disable save button
+                return;
+            }
+
+            uniqueCoursesArray.forEach(courseName => {
+                const savedCode = qpCodeMap[courseName] || "";
+                qpCodeContainer.innerHTML += `
+                    <div class="flex items-center gap-3 p-2 border-b border-gray-200">
+                        <label class="font-medium text-gray-700 w-2/3 text-sm">${courseName}</label>
+                        <input type="text" 
+                               class="qp-code-input block w-1/3 p-2 border border-gray-300 rounded-md shadow-sm text-sm" 
+                               value="${savedCode}" 
+                               data-course="${courseName}" 
+                               placeholder="Enter QP Code">
+                    </div>
+                `;
+            });
+            saveQpCodesButton.disabled = false; // V62: Enable save button once list is rendered
+            qpCodeStatus.textContent = ''; // V62: Clear status on new load
+        }
+        
+        // V62: Manual Save Button Handler
+        saveQpCodesButton.addEventListener('click', () => {
+            // 1. Iterate over all visible inputs and update the global map
+            const qpInputs = qpCodeContainer.querySelectorAll('.qp-code-input');
+            
+            // V63 FIX: Iterating over all inputs and ensuring keys are clean
+            let saveCount = 0;
+            
+            qpInputs.forEach(input => {
+                // V63 FIX: Ensure the key (from data-course) is consistently trimmed
+                const courseName = input.dataset.course.trim(); 
+                const qpCode = input.value.trim();
+
+                if (courseName) {
+                    qpCodeMap[courseName] = qpCode; 
+                    saveCount++;
+                }
+            });
+
+            // 2. Commit the global map (which was just updated) to localStorage
+            localStorage.setItem(QP_CODE_LIST_KEY, JSON.stringify(qpCodeMap));
+
+            // 3. Show success message
+            qpCodeStatus.classList.remove('text-red-600');
+            qpCodeStatus.classList.add('text-green-600');
+            qpCodeStatus.textContent = `QP Codes saved successfully!`;
+            setTimeout(() => { qpCodeStatus.textContent = ""; }, 2000);
+        });
+
+        // V62: Input listener now just updates map and displays pending status
+        qpCodeContainer.addEventListener('input', (e) => {
+            if (e.target.classList.contains('qp-code-input')) {
+                // V63 FIX: Ensure the key (from data-course) is consistently trimmed
+                const courseName = e.target.dataset.course.trim(); 
+                const qpCode = e.target.value.trim();
+                
+                if (courseName) {
+                    // Update global map immediately (in memory)
+                    qpCodeMap[courseName] = qpCode;
+                    
+                    // Show pending status
+                    qpCodeStatus.classList.remove('text-green-600');
+                    qpCodeStatus.classList.add('text-red-600');
+                    qpCodeStatus.textContent = 'Unsaved changes... Click SAVE QP CODES to commit.';
+                }
+            }
+        });
+
         
         // --- Run on initial page load ---
         loadRoomConfig();
-        loadDataFromStorage(); // V58: Load persistent data
+        disable_absentee_tab(true); // V56: Disable tab by default
+        disable_qpcode_tab(true); // V58: Disable tab by default
 
     </script>
 
 </body>
 </html>
-
