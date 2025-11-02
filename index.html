@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Title -->
-    <title>UOC Exam Management V78</title>
+    <title>UOC Exam Management V79</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -1384,13 +1384,17 @@
         }
         
         // --- (V28) Helper function to create a new room row HTML (with location) ---
-        function createRoomRowHtml(roomName, capacity, location) {
+        function createRoomRowHtml(roomName, capacity, location, isLast = false) {
+            const removeButtonHtml = isLast ? 
+                `<button class="remove-room-button ml-auto text-sm text-red-600 hover:text-red-800 font-medium">&times; Remove</button>` : 
+                `<div class="w-[84px]"></div>`; // Placeholder for alignment
+            
             return `
-                <div class="room-row flex items-center gap-3 p-2 border-b border-gray-200">
+                <div class="room-row flex items-center gap-3 p-2 border-b border-gray-200" data-room-name="${roomName}">
                     <label class="room-name-label font-medium text-gray-700 w-24 shrink-0">${roomName}:</label>
                     <input type="number" class="room-capacity-input block w-20 p-2 border border-gray-300 rounded-md shadow-sm text-sm" value="${capacity}" min="1" placeholder="30">
                     <input type="text" class="room-location-input block flex-grow p-2 border border-gray-300 rounded-md shadow-sm text-sm" value="${location}" placeholder="e.g., Commerce Block">
-                    <button class="remove-room-button ml-auto text-sm text-red-600 hover:text-red-800 font-medium">&times; Remove</button>
+                    ${removeButtonHtml}
                 </div>
             `;
         }
@@ -2127,7 +2131,7 @@
             }
         });
 
-        // --- (V48) Load data into dynamic form (with College Name) ---
+        // --- (V79) Load data into dynamic form (with UX Fix) ---
         function loadRoomConfig() {
             // V48: Load College Name
             currentCollegeName = localStorage.getItem(COLLEGE_NAME_KEY) || "University of Calicut";
@@ -2170,9 +2174,11 @@
                 return numA - numB;
             });
             
-            sortedKeys.forEach(roomName => {
+            // V79: Add rows, determining if 'isLast' is true
+            sortedKeys.forEach((roomName, index) => {
                 const roomData = config[roomName];
-                const rowHtml = createRoomRowHtml(roomName, roomData.capacity, roomData.location);
+                const isLast = (index === sortedKeys.length - 1);
+                const rowHtml = createRoomRowHtml(roomName, roomData.capacity, roomData.location, isLast);
                 roomConfigContainer.insertAdjacentHTML('beforeend', rowHtml);
             });
         }
@@ -2194,14 +2200,28 @@
                 newName = `Room ${lastNum + 1}`;
             }
             
-            const newRowHtml = createRoomRowHtml(newName, 30, ""); // Default to 30, no location
+            // V79: Before adding new row, remove remove button from the current last row
+            const currentLastRow = roomConfigContainer.lastElementChild;
+            if (currentLastRow) {
+                const removeButton = currentLastRow.querySelector('.remove-room-button');
+                if (removeButton) {
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'w-[84px]'; // Match the button width for alignment
+                    removeButton.parentNode.replaceChild(placeholder, removeButton);
+                }
+            }
+
+            const newRowHtml = createRoomRowHtml(newName, 30, "", true); // Add new row as the last row
             roomConfigContainer.insertAdjacentHTML('beforeend', newRowHtml);
         });
         
-        // --- (V26) Remove Room Button (Event Delegation) ---
+        // --- (V79) Remove Room Button (Event Delegation for all rows) ---
         roomConfigContainer.addEventListener('click', (e) => {
             if (e.target.classList.contains('remove-room-button')) {
                 e.target.closest('.room-row').remove();
+                
+                // Re-save configuration to update the room names and persist the deletion
+                saveRoomConfigButton.click(); // Triggers re-saving and re-rendering to fix numbering and buttons
             }
         });
         
