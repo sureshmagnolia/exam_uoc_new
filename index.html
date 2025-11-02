@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Title -->
-    <title>UOC Exam Management V37</title>
+    <title>UOC Exam Management V48</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -313,8 +313,8 @@
     <nav id="main-nav" class="bg-gray-800 text-white p-4 sticky top-0 z-50">
         <div class="container max-w-2xl mx-auto flex justify-between items-center">
             <!-- New Title Here -->
-            <!-- V37: Title Update -->
-            <h1 class="text-lg font-bold text-white bg-red-600 px-3 py-1 rounded-md shadow-md">UOC Exam Management (V37)</h1>
+            <!-- V48: Title Update -->
+            <h1 class="text-lg font-bold text-white bg-red-600 px-3 py-1 rounded-md shadow-md">UOC Exam Management (V48)</h1>
             
             <!-- Navigation buttons on the right -->
             <div class="flex gap-4">
@@ -384,10 +384,19 @@
         </div>
     </div>
     
-    <!-- *** "Room Settings" View (V28 - LOCATION FIELD ADDED) *** -->
+    <!-- *** "Room Settings" View (V48 - COLLEGE NAME FIELD ADDED) *** -->
     <div id="view-settings" class="container max-w-2xl mx-auto p-4 min-h-screen hidden">
         <div class="bg-white p-8 rounded-lg shadow-xl w-full">
             <h1 class="text-3xl font-bold text-gray-800 mb-6">Room Capacity Settings</h1>
+            
+            <!-- V48: College Name Setting -->
+            <div class="mb-6">
+                <label for="college-name" class="block text-sm font-medium text-gray-700">College Name for Reports:</label>
+                <input type="text" id="college-name" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., University of Calicut">
+            </div>
+            
+            <hr class="mb-6">
+            
             <p class="text-gray-600 mb-4">
                 Define the number of students per room. This list is automatically saved to your browser.
                 If a capacity is left blank, it will default to 30 when saved.
@@ -502,16 +511,16 @@
 
     <!-- Define Python Environment -->
     <py-config>
-        packages = ["pandas", "pdfplumber==0.7.1"]
+        <!-- V42: Downgraded to a pure-python version to fix pypdfium2 error -->
+        packages = ["pandas", "pdfplumber==0.9.0"]
     </py-config>
     
-    <!-- *** Python Script (V37 - Bug Fix) *** -->
+    <!-- *** Python Script (V47 - ROBUST DETECTION) *** -->
     <py-script>
         import pandas as pd
         import pdfplumber
         import re
         import io
-        # V37: Bug fix. Removed 'js' from this import line.
         from js import document, console, URL, Blob, window, localStorage 
         import asyncio
         import json 
@@ -531,7 +540,6 @@
         q_paper_data_store = document.getElementById("q-paper-data-store")
         generate_qpaper_report_button = document.getElementById("generate-qpaper-report-button")
         
-        # (V29) Get ref to new button
         generate_daywise_report_button = document.getElementById("generate-daywise-report-button")
         
         run_button = document.getElementById("run-button")
@@ -576,6 +584,7 @@
         def get_sort_key(row):
             """Converts DD.MM.YYYY and HH:MM PM to a sortable format."""
             try:
+                # V38: Standardized on DD.MM.YYYY
                 date_obj = datetime.strptime(row['Date'], '%d.%m.%Y')
                 time_obj = datetime.strptime(row['Time'], '%I:%M %p')
                 return (date_obj, time_obj)
@@ -583,15 +592,160 @@
                 console.log(f"Sort Error: Could not parse Date '{row['Date']}' or Time '{row['Time']}'. Error: {e}")
                 return (datetime.min, datetime.min) 
 
+        # --- V40: STATEFUL PARSER for the "NEW" PDF format ---
+        def extract_new_format_header(page_text):
+            """Extracts header from Page 1 of the new format."""
+            date_val, time_val, course_name = "Unknown", "Unknown", "Unknown"
+            try:
+                # V45: Use [\s\n]* to be whitespace-insensitive
+                dt_match = re.search(r'Exam Date:[\s\n]*(\d{2}-\d{2}-\d{4})\s*(\d{2}:\d{2}\s*[AP]M)', page_text)
+                if dt_match:
+                    date_val = dt_match.group(1).replace('-', '.')
+                    time_val = dt_match.group(2)
+                
+                # V45: Use [\s\n]* to be whitespace-insensitive
+                course_match = re.search(r'Paper Details:[\s\n]*(.*?)/', page_text)
+                if course_match:
+                    course_name = course_match.group(1).strip()
+            except Exception:
+                pass # Errors will be logged by the caller if fields are "Unknown"
+            return date_val, time_val, course_name
+
+        def extract_new_format_students(page_text, file_name, page_num):
+            """Extracts only students from any page of the new format."""
+            page_rows = []
+            # V45: This regex is the critical fix. It looks for:
+            # " (SlNo) ", " (RegNo) ", " (Name) ", " (DOB) "
+            # This handles newlines inside the name field correctly.
+            student_regex = re.compile(
+                r'"(\d+)\s*","([A-Z0-9]+)\s*","(.*?)"\s*,"(.*?)"', 
+                re.DOTALL
+            )
+            for match in student_regex.finditer(page_text):
+                try:
+                    reg_no = match.group(2).strip()
+                    name = match.group(3).strip().replace('\n', ' ')
+                    page_rows.append({'Register Number': reg_no, 'Name': name})
+                except Exception as e:
+                    log_status(f"Skipping row. Details: {e}", is_error=True, file_name=file_name, page=page_num)
+            return page_rows
+
+        # --- V40: STATEFUL PARSER for the "OLD" PDF format (V44: ROBUST) ---
+        def extract_old_format_header(page_text):
+            """Extracts header from Page 1 of the old format."""
+            date_val, time_val, course_name = "Unknown", "Unknown", "Unknown"
+            try:
+                # --- Course Regex ---
+                # 1. Try (CORE) or [syllabus]
+                course_match = re.search(r'([A-Z0-9]{3,}\d{3,}.*?(\[.*?syllabus\]|\(CORE\)))', page_text, re.DOTALL | re.IGNORECASE)
+                if not course_match:
+                    # 2. Try B.A. ... (CORE)
+                    course_match = re.search(r'^(B\.?[A-Z]{1,3}\.?\s*.*?\(CORE\))', page_text, re.MULTILINE | re.IGNORECASE)
+                if not course_match:
+                    # 3. Try line with (CCSS)
+                    course_match = re.search(r'^(.*?\(CCSS.*?\))$', page_text, re.MULTILINE | re.IGNORECASE)
+                if not course_match:
+                    # 4. Try all-caps line with a course code
+                    course_match = re.search(r'^([A-Z\s\d\(\)\[\]]{10,}\s[A-Z]{3}\d[A-Z]\d{2,})$', page_text, re.MULTILINE)
+                
+                if course_match:
+                    course_name = course_match.group(1).strip().replace('\n', ' ')
+                    course_name = course_name.replace(' Course [', ' [')
+                
+                # --- Date/Time Regex ---
+                datetime_match = None
+                
+                # 1. Try simple DD.MM.YYYY HH:MM AM/PM
+                try:
+                    datetime_match = re.search(
+                        r'(\d{2}\.\d{2}\.\d{4})\s+(\d{1,2}:\d{2}\s*[AP]M)', 
+                        page_text, 
+                        re.DOTALL | re.IGNORECASE
+                    )
+                except Exception: pass
+                
+                if not datetime_match:
+                    # 2. Try 'Date of Examination'
+                    try:
+                        datetime_match = re.search(
+                            r'Date of Examination.*?:?\s*(\d{2}\.\d{2}\.\d{4})\s*(\d{1,2}:\d{2}\s*[AP]M|002:0 0PM)', 
+                            page_text, 
+                            re.DOTALL | re.IGNORECASE # Make : optional
+                        )
+                    except Exception: pass 
+                
+                if not datetime_match:
+                    # 3. Try generic 'Date'
+                    try:
+                        datetime_match = re.search(
+                            r'Date.*?(\d{2}\.\d{2}\.\d{4})[\s\S]{0,100}?(\d{1,2}:\d{2}\s*[AP]M|002:0 0PM)', 
+                            page_text, 
+                            re.DOTALL | re.IGNORECASE
+                        )
+                    except Exception: pass 
+                                        
+                if datetime_match:
+                    date_val = datetime_match.group(1).strip()
+                    time_val = datetime_match.group(2).strip()
+                    if "002:0 0PM" in time_val: time_val = "02:00 PM"
+                    if " " not in time_val: # Fix for "09:30AM"
+                        time_val = time_val.replace("AM", " AM").replace("PM", " PM")
+                    
+                    # V44: Standardize time format (e.g., 9:30 AM -> 09:30 AM)
+                    time_parts = time_val.split(':')
+                    if len(time_parts[0]) == 1:
+                        time_val = "0" + time_val
+
+            except Exception:
+                pass # Errors will be logged by the caller if fields are "Unknown"
+            return date_val, time_val, course_name
+
+        def extract_old_format_students(page, file_name, page_num):
+            """Extracts only students from any page of the old format."""
+            page_rows = []
+            reg_num_regex = re.compile(r'([A-Z0-9]{5,}\d{3})')
+            tables = page.extract_tables()
+            
+            for table in tables:
+                for row in table:
+                    try:
+                        if not row or not row[0]: continue
+                        if not row[0].strip().isdigit(): continue
+                        reg_num, name = "Unknown", "Unknown"
+                        for idx, cell in enumerate(row):
+                            if not cell: continue
+                            cell_text = cell.strip().replace('\n', ' ')
+                            reg_match = reg_num_regex.search(cell_text)
+                            if reg_match:
+                                reg_num = reg_match.group(1)
+                                name_fragment = cell_text.replace(reg_num, '').strip()
+                                if name_fragment and not reg_num_regex.search(name_fragment) and not name_fragment.isdigit():
+                                    name = name_fragment
+                                    break
+                                try:
+                                    next_cell = row[idx+1]
+                                    if next_cell and next_cell.strip():
+                                        name = next_cell.strip().replace('\n', ' ')
+                                        break
+                                    next_next_cell = row[idx+2]
+                                    if next_next_cell and next_next_cell.strip():
+                                        name = next_next_cell.strip().replace('\n', ' ')
+                                        break
+                                except IndexError: pass
+                        if reg_num != "Unknown":
+                            page_rows.append({'Register Number': reg_num.strip(), 'Name': name.strip()})
+                    except Exception as e:
+                        error_msg = f"Skipping row. Details: {e}"
+                        log_message(f"Warning: {e}")
+                        log_status(error_msg, is_error=True, file_name=file_name, page=page_num)
+            return page_rows
         
         async def start_extraction(event=None):
             """
             This function is the entry point from the "Run" button.
             It calls the main extraction function.
             """
-            # V37: We need the global 'js' object here, which is provided by PyScript
-            # We must import it *here* to access it.
-            import js
+            import js # V37: Import js here
             try:
                 show_loader(True)
                 await asyncio.sleep(0) # Let loader show
@@ -610,15 +764,15 @@
         async def run_extraction_py(event=None):
             """
             This is the main extraction logic.
-            It now logs errors to the status-log div.
+            V40: Re-written to be STATEFUL and FILE-BASED.
             """
-            errors_list = [] # Still used to count errors
+            errors_list = []
             try:
                 # --- 1. Reset all UI elements ---
                 csv_download_container.innerHTML = ""
                 generate_report_button.disabled = True
                 generate_qpaper_report_button.disabled = True
-                generate_daywise_report_button.disabled = True # (V29) Disable new button
+                generate_daywise_report_button.disabled = True 
                 json_data_store.innerHTML = ""
                 q_paper_data_store.innerHTML = ""
                 status_div.innerHTML = ""
@@ -635,16 +789,14 @@
                 if file_list.length == 0:
                     log_message("Error: Please select one or more PDF files first.")
                     log_status("Error: Please select one or more PDF files first.", is_error=True)
-                    errors_list.append("No files selected") # Add to error count
-                    return # Stop execution
+                    errors_list.append("No files selected")
+                    return
                 
-                # --- 2. PDF Processing Loop ---
+                # --- 2. PDF Processing Loop (V40 STATEFUL) ---
                 all_exam_rows = []
                 total_files = file_list.length
                 log_message(f"Found {total_files} file(s) to process.")
-                
-                reg_num_regex = re.compile(r'([A-Z0-9]{5,}\d{3})')
-                
+                                
                 for file_index in range(total_files):
                     file = file_list.item(file_index)
                     file_name = file.name
@@ -653,109 +805,88 @@
                     try:
                         file_bytes = await file.arrayBuffer()
                         pdf_file_obj = io.BytesIO(file_bytes.to_py())
-                        
-                        course_name = "Unknown"
-                        date_val = "Unknown"
-                        time_val = "Unknown"
-                        
+                                                
                         with pdfplumber.open(pdf_file_obj) as pdf:
-                            total_pages = len(pdf.pages)
-                            log_message(f"File has {total_pages} pages.")
-                            
-                            for i, page in enumerate(pdf.pages):
-                                if (i + 1) % 5 == 0 or (i + 1) == total_pages: # Log less often
-                                    log_message(f"Processing page {i + 1}/{total_pages}...")
-                                    await asyncio.sleep(0) 
-                                
-                                page_text = page.extract_text(y_tolerance=3, x_tolerance=3)
-                                                        
-                                course_match = re.search(r'([A-Z0-9]{3,}\d{3,}.*?\[.*?syllabus\])', page_text, re.DOTALL)
-                                if course_match:
-                                    new_course_name = course_match.group(1).strip().replace('\n', ' ')
-                                    new_course_name = new_course_name.replace(' Course [', ' [')
-                                    if new_course_name != course_name:
-                                        course_name = new_course_name
+                            if not pdf.pages:
+                                log_status("File has no pages.", is_error=True, file_name=file_name, page="N/A")
+                                errors_list.append("File has no pages")
+                                continue
 
-                                datetime_match = None
-                                try:
-                                    datetime_match = re.search(
-                                        r'Date of Examination.*?(\d{2}\.\d{2}\d{4})\s*(\d{1,2}:\d{2}\s*PM|002:0 0PM)', 
-                                        page_text, 
-                                        re.DOTALL
-                                    )
-                                except Exception: pass 
+                            # --- V40: STATEFUL LOGIC ---
+                            # 1. Read Page 1 to get header and determine format
+                            page1_text = pdf.pages[0].extract_text(y_tolerance=3, x_tolerance=3)
+                            
+                            file_date = "Unknown"
+                            file_time = "Unknown"
+                            file_course = "Unknown"
+                            is_new_format = False
+
+                            # V47: New detection logic.
+                            # Check for the unique header combination of the new format.
+                            if "SI.No" in page1_text and "D.O.B" in page1_text and "Remarks" in page1_text:
+                                # This is the NEW format
+                                is_new_format = True
+                                file_date, file_time, file_course = extract_new_format_header(page1_text)
+                                log_message("Detected 'New' PDF format.")
+                            else:
+                                # Assume OLD format
+                                is_new_format = False
+                                file_date, file_time, file_course = extract_old_format_header(page1_text)
+                                log_message("Detected 'Old' PDF format.")
+
+                            # Log warnings if header info is still unknown
+                            if file_date == "Unknown":
+                                log_status("Could not determine Exam Date.", is_error=True, file_name=file_name, page=1)
+                                errors_list.append("Unknown Date")
+                            if file_time == "Unknown":
+                                log_status("Could not determine Exam Time.", is_error=True, file_name=file_name, page=1)
+                                errors_list.append("Unknown Time")
+                            if file_course == "Unknown":
+                                log_status("Could not determine Course.", is_error=True, file_name=file_name, page=1)
+                                errors_list.append("Unknown Course")
+
+                            # 2. Loop through ALL pages (including page 1) to extract students
+                            total_students_in_file = 0
+                            for i, page in enumerate(pdf.pages):
+                                page_num = i + 1
                                 
-                                if not datetime_match:
-                                    try:
-                                        datetime_match = re.search(
-                                            r'Date[\s\S]{0,100}?(\d{2}\.\d{2}\.\d{4})[\s\S]{0,100}?(\d{1,2}:\d{2}\s*PM|002:0 0PM)', 
-                                            page_text, 
-                                            re.DOTALL | re.IGNORECASE
-                                        )
-                                    except Exception: pass 
-                                                        
-                                if datetime_match:
-                                    new_date_val = datetime_match.group(1).strip()
-                                    if new_date_val != date_val: date_val = new_date_val
-                                    
-                                    new_time_val = datetime_match.group(2).strip()
-                                    if "002:0 0PM" in new_time_val: new_time_val = "02:00 PM"
-                                    if " " not in new_time_val:
-                                        new_time_val = new_time_val.replace(" ", "")
-                                        if len(new_time_val) == 7: new_time_val = "0" + new_time_val[:4] + " " + new_time_val[4:]
-                                        elif len(new_time_val) == 8: new_time_val = new_time_val[:5] + " " + new_time_val[5:]
-                                    if new_time_val != time_val: time_val = new_time_val
+                                page_students = []
+                                if is_new_format:
+                                    # V45: Pass page_text for regex
+                                    page_text = page.extract_text(y_tolerance=3, x_tolerance=3)
+                                    page_students = extract_new_format_students(page_text, file_name, page_num)
+                                else:
+                                    # V45: Pass page object for table extraction
+                                    page_students = extract_old_format_students(page, file_name, page_num)
                                 
-                                tables = page.extract_tables()
-                                
-                                for table in tables:
-                                    for row in table:
-                                        try:
-                                            if not row or not row[0]: continue
-                                            if not row[0].strip().isdigit(): continue
-                                            reg_num, name = "Unknown", "Unknown"
-                                            for idx, cell in enumerate(row):
-                                                if not cell: continue
-                                                cell_text = cell.strip().replace('\n', ' ')
-                                                reg_match = reg_num_regex.search(cell_text)
-                                                if reg_match:
-                                                    reg_num = reg_match.group(1)
-                                                    name_fragment = cell_text.replace(reg_num, '').strip()
-                                                    if name_fragment and not reg_num_regex.search(name_fragment) and not name_fragment.isdigit():
-                                                        name = name_fragment
-                                                        break
-                                                    try:
-                                                        next_cell = row[idx+1]
-                                                        if next_cell and next_cell.strip():
-                                                            name = next_cell.strip().replace('\n', ' ')
-                                                            break
-                                                        next_next_cell = row[idx+2]
-                                                        if next_next_cell and next_next_cell.strip():
-                                                            name = next_next_cell.strip().replace('\n', ' ')
-                                                            break
-                                                    except IndexError: pass
-                                            if reg_num != "Unknown":
-                                                all_exam_rows.append({
-                                                    'Date': date_val.strip(), 'Time': time_val.strip(),
-                                                    'Course': course_name.strip(), 'Register Number': reg_num.strip(),
-                                                    'Name': name.strip()
-                                                })
-                                        except Exception as e:
-                                            error_msg = f"Skipping row. Details: {e}"
-                                            log_message(f"Warning: {e}")
-                                            log_status(error_msg, is_error=True, file_name=file_name, page=i+1)
-                                            errors_list.append(error_msg) # Add to error count
+                                if page_students:
+                                    total_students_in_file += len(page_students)
+                                    # 3. Apply the STORED header info to all students found
+                                    for student in page_students:
+                                        all_exam_rows.append({
+                                            'Date': file_date,
+                                            'Time': file_time,
+                                            'Course': file_course,
+                                            'Register Number': student['Register Number'],
+                                            'Name': student['Name']
+                                        })
+                                else:
+                                    log_status(f"No students found on page.", is_error=False, file_name=file_name, page=page_num)
+                            
+                            log_message(f"Found {total_students_in_file} students in this file.")
+                            # --- END V4S40 STATEFUL LOGIC ---
+
                     except Exception as e:
                         error_msg = f"CRITICAL ERROR processing file. Skipping this file. Details: {e}"
                         log_message(error_msg)
                         log_status(error_msg, is_error=True, file_name=file_name, page="N/A")
-                        errors_list.append(error_msg) # Add to error count
+                        errors_list.append(error_msg) 
                 
                 log_message("--- Batch processing complete. ---")
 
                 if not all_exam_rows:
                     log_message("Error: No data was extracted from any file.")
-                    return # Stop execution
+                    return
                 
                 # --- 3. Sorting ---
                 log_message(f"Found {len(all_exam_rows)} total candidates from {total_files} file(s).")
@@ -772,6 +903,7 @@
                 
                 # --- 6. Q-PAPER REPORT SUMMARY ---
                 log_message("Generating question paper summary...")
+                # V38: Group by all fields to get unique course names
                 q_paper_df = df.groupby(['Date', 'Time', 'Course']).size().reset_index(name='Student Count')
                 q_paper_summary_json = q_paper_df.to_json(orient='records')
                 q_paper_data_store.innerHTML = q_paper_summary_json
@@ -797,7 +929,7 @@
                 
                 generate_report_button.disabled = False
                 generate_qpaper_report_button.disabled = False
-                generate_daywise_report_button.disabled = False # (V29) Enable new button
+                generate_daywise_report_button.disabled = False
                                 
                 log_message("Success! Your combined files are ready.")
             
@@ -805,7 +937,7 @@
                 error_msg = f"An error occurred: {e}"
                 log_message(error_msg)
                 log_status(error_msg, is_error=True, file_name="Application", page="N/A")
-                errors_list.append(error_msg) # Add to error count
+                errors_list.append(error_msg)
             finally:
                 # (V18): Log final status message
                 if not errors_list:
@@ -816,16 +948,20 @@
             
     </py-script>
 
-    <!-- *** JAVASCRIPT FOR ALL UI (V35) *** -->
+    <!-- *** JAVASCRIPT FOR ALL UI (V48) *** -->
     <script>
-        // --- Global localStorage Key ---
-        const ROOM_CONFIG_KEY = 'examRoomConfig';
+        // --- Global localStorage Keys (V48) ---
+        const ROOM_CONFIG_KEY = 'examRoomConfig_v48';
+        const COLLEGE_NAME_KEY = 'examCollegeName_v48'; // V48: New key
         
         // --- Global var to hold data from the last *report run* ---
         let lastGeneratedRoomData = [];
         
         // --- (V28) Global var to hold room config map for report generation ---
         let currentRoomConfig = {};
+        
+        // --- (V48) Global var to hold college name ---
+        let currentCollegeName = "University of Calicut";
 
         // --- Get references to all Report elements ---
         const generateReportButton = document.getElementById('generate-report-button');
@@ -852,6 +988,7 @@
         const addRoomButton = document.getElementById('add-room-button');
         const saveRoomConfigButton = document.getElementById('save-room-config-button');
         const roomConfigStatus = document.getElementById('room-config-status');
+        const collegeNameInput = document.getElementById('college-name'); // V48
         
         // --- Get references to Q-Paper Report elements ---
         const qPaperDataStore = document.getElementById('q-paper-data-store');
@@ -1050,11 +1187,12 @@
                     let courseSummaryHtml = '';
                     for (const [courseName, count] of Object.entries(session.courseCounts)) {
                         const shortCourseName = courseName.split(' ').slice(0, 4).join(' ') + (courseName.split(' ').length > 4 ? '...' : '');
-                        courseSummaryHtml += `<div style="font-weight: bold;">${shortCourseName}: ${count} Student(s)</div>`;
+                        courseSummaryHtml += `<div style="font-weight: bold;">${courseName}: ${count} Student(s)</div>`; // V38: Show full course name
                     }
                     
+                    // V48: Use saved college name
                     const pageHeaderHtml = `
-                        <h1>University of Calicut</h1>
+                        <h1>${currentCollegeName}</h1> 
                         <h2>${session.Date} &nbsp;|&nbsp; ${session.Time} &nbsp;|&nbsp; ${session.Room}</h2>
                         ${locationHtml} <!-- (V28) Added location here -->
                         <div class="course-summary">
@@ -1092,7 +1230,7 @@
                         let rowsHtml = '';
                         studentList.forEach((student) => { 
                             const studentNumber = student.originalIndex + 1; 
-                            const tableCourseName = student.Course.split(' ').slice(0, 4).join(' ') + (student.Course.split(' ').length > 4 ? '...' : '');
+                            const tableCourseName = student.Course; // V38: Show full course name
                             let displayCourseName = (tableCourseName === previousCourseName) ? '"' : tableCourseName;
                             if (tableCourseName !== previousCourseName) previousCourseName = tableCourseName;
 
@@ -1234,9 +1372,11 @@
                 const STUDENTS_PER_PAGE = STUDENTS_PER_COLUMN * COLUMNS_PER_PAGE; // 240
 
                 // (V30) Helper to build a table for a column, NOW WITH COURSE GROUPING
+                // (V48) This function now tracks the previous room to print ditto marks
                 function buildColumnTable(studentChunk) {
                     let rowsHtml = '';
                     let currentCourse = ""; // Track the current course
+                    let previousRoomDisplay = ""; // V48: Track previous room
 
                     studentChunk.forEach(student => {
                         // Check if the course has changed
@@ -1250,12 +1390,20 @@
                                     </td>
                                 </tr>
                             `;
+                            previousRoomDisplay = ""; // V48: Reset for new course
                         }
 
                         // Add the student row
                         const roomInfo = currentRoomConfig[student.roomName];
                         const location = (roomInfo && roomInfo.location) ? roomInfo.location : "";
-                        const roomDisplay = location ? `${student.roomName} (${location})` : student.roomName;
+                        let roomDisplay = location ? `${student.roomName} (${location})` : student.roomName;
+                        
+                        // V48: Check if same as previous row
+                        if (roomDisplay === previousRoomDisplay) {
+                            roomDisplay = '"';
+                        } else {
+                            previousRoomDisplay = roomDisplay;
+                        }
 
                         rowsHtml += `
                             <tr>
@@ -1296,10 +1444,12 @@
                         const col1Students = pageStudents.slice(0, STUDENTS_PER_COLUMN);
                         const col2Students = pageStudents.slice(STUDENTS_PER_COLUMN); // (V31) Changed to get rest of students
 
+                        // V48: Use saved college name
                         allPagesHtml += `
                             <div class="print-page print-page-daywise">
-                                <h1>Day-wise Student List</h1>
-                                <h2>${session.Date} &nbsp;|&nbsp; ${session.Time}</h2>
+                                <h1>${currentCollegeName}</h1>
+                                <h2>Day-wise Student List</h2>
+                                <h3>${session.Date} &nbsp;|&nbsp; ${session.Time}</h3>
                                 <div class="column-container">
                                     <div class="column">
                                         ${buildColumnTable(col1Students)}
@@ -1404,11 +1554,17 @@
             clearReport(); // Always clear reports when switching views
         }
 
-        // --- (V28) NEW ROOM SETTINGS LOGIC (OBJECT-BASED) ---
+        // --- (V48) UPDATED ROOM SETTINGS LOGIC (with College Name) ---
         
-        // --- (V28) Save from dynamic form (uses new object structure) ---
+        // --- (V48) Save from dynamic form (includes College Name) ---
         saveRoomConfigButton.addEventListener('click', () => {
             try {
+                // 1. Save College Name
+                const collegeName = collegeNameInput.value.trim() || "University of Calicut";
+                localStorage.setItem(COLLEGE_NAME_KEY, collegeName);
+                currentCollegeName = collegeName; // Update global var
+                
+                // 2. Save Room Config
                 const newConfig = {};
                 const roomRows = roomConfigContainer.querySelectorAll('.room-row');
                 
@@ -1437,7 +1593,7 @@
                 roomConfigStatus.textContent = "Settings saved successfully!";
                 setTimeout(() => { roomConfigStatus.textContent = ""; }, 2000);
                 
-                // Reload the form to show normalized data (e.g., show the '30' in blank fields)
+                // Reload the form to show normalized data
                 loadRoomConfig();
                 
             } catch (e) {
@@ -1446,8 +1602,13 @@
             }
         });
 
-        // --- (V28) Load data into dynamic form (uses new object structure) ---
+        // --- (V48) Load data into dynamic form (includes College Name) ---
         function loadRoomConfig() {
+            // 1. Load College Name
+            currentCollegeName = localStorage.getItem(COLLEGE_NAME_KEY) || "University of Calicut";
+            collegeNameInput.value = currentCollegeName;
+            
+            // 2. Load Room Config
             let savedConfigJson = localStorage.getItem(ROOM_CONFIG_KEY);
             let config;
             
@@ -1573,9 +1734,10 @@
                         `;
                     });
                     
+                    // V48: Use saved college name
                     const pageHtml = `
                         <div class="print-page">
-                            <h1>University of Calicut</h1>
+                            <h1>${currentCollegeName}</h1>
                             <h2>Question Paper Summary</h2>
                             <h3>${session.Date} &nbsp;|&nbsp; ${session.Time}</h3>
                             
@@ -1661,7 +1823,7 @@
                 if (regNumIndex === -1 || nameIndex === -1 || courseIndex === -1) {
                     csvLoadStatus.textContent = "Error: CSV must contain 'Register Number', 'Name', and 'Course' headers.";
                     csvLoadStatus.classList.add('text-red-600');
-                    csvLoadStatus.classList.remove('text-green-600');
+                    csvLoadStatus.classList.remove('text-green-600'); // V45: Fix typo
                     return;
                 }
 
@@ -1689,7 +1851,7 @@
                     };
                     
                     jsonData.push(student);
-                    
+
                     // --- Regenerate Q-Paper Summary ---
                     const key = `${student.Date}_${student.Time}_${student.Course}`;
                     if (!qPaperSummary[key]) {
