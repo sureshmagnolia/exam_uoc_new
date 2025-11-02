@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Title -->
-    <title>UOC Exam Management V57</title>
+    <title>UOC Exam Management V58</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -422,8 +422,8 @@
     <!-- *** Main Navigation Bar (V56 Update: Absentees) *** -->
     <nav id="main-nav" class="bg-gray-800 text-white p-4 sticky top-0 z-50">
         <div class="container max-w-2xl mx-auto flex justify-between items-center">
-            <!-- V57: Title Update -->
-            <h1 class="text-lg font-bold text-white bg-red-600 px-3 py-1 rounded-md shadow-md">UOC Exam Management (V57)</h1>
+            <!-- V58: Title Update -->
+            <h1 class="text-lg font-bold text-white bg-red-600 px-3 py-1 rounded-md shadow-md">UOC Exam Management (V58)</h1>
             
             <!-- Navigation buttons on the right -->
             <div class="flex gap-4">
@@ -541,7 +541,7 @@
         </div>
     </div>
     
-    <!-- *** "Reports" View (V33 Update: Added CSV Upload) *** -->
+    <!-- *** "Reports" View (V58 Update: Added Session Filter) *** -->
     <div id="view-reports" class="container max-w-2xl mx-auto p-4 min-h-screen hidden">
         <div class="bg-white p-8 rounded-lg shadow-xl w-full">
             <h1 class="text-3xl font-bold text-gray-800 mb-6">Reports</h1>
@@ -567,6 +567,17 @@
                 <span id="csv-load-status" class="text-sm font-medium text-green-600 mt-2 block h-5"></span>
             </div>
             <!-- END V33 Section -->
+            
+            <!-- V58: New Session Filter Section -->
+            <div class="bg-gray-50 border border-gray-200 p-4 rounded-md mb-6">
+                <label for="report-session-select" class="block text-sm font-medium text-gray-700 mb-1">Select Exam Session to Report On:</label>
+                <select id="report-session-select" class="block w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm">
+                    <option value="ALL">All Sessions (Bulk Print)</option>
+                    <!-- Sessions will be populated by JS -->
+                </select>
+                <p class="text-xs text-gray-500 mt-1">Select a single session to print for just that day/time.</p>
+            </div>
+            <!-- END V58 Section -->
 
             <p class="text-gray-600 mb-4">
                 Generate reports based on the last batch extraction. (Buttons are enabled after extraction or CSV load.)
@@ -674,7 +685,7 @@
         packages = ["pandas", "pdfplumber==0.9.0"]
     </py-config>
     
-    <!-- *** Python Script (V57 - RELIABLE PARSING) *** -->
+    <!-- *** Python Script (V58 - Data Persistence) *** -->
     <py-script>
         import pandas as pd
         import pdfplumber
@@ -920,6 +931,9 @@
                 
                 # V33: Clear the CSV upload status
                 js.clear_csv_upload_status() # This needs the global 'js'
+                
+                # V58: Clear persistent data
+                js.clear_persistent_data() 
                     
                 # Call the main logic function
                 await run_extraction_py()
@@ -1094,7 +1108,8 @@
                 """
                 
                 json_data = json.dumps(all_exam_rows_sorted)
-                json_data_store.innerHTML = json_data
+                # V58: Call JS helper to save to localStorage
+                js.save_data_to_storage(json_data) 
                 
                 generate_report_button.disabled = False
                 generate_qpaper_report_button.disabled = False
@@ -1119,12 +1134,13 @@
             
     </py-script>
 
-    <!-- *** JAVASCRIPT FOR ALL UI (V57) *** -->
+    <!-- *** JAVASCRIPT FOR ALL UI (V58) *** -->
     <script>
         // --- Global localStorage Key ---
         const ROOM_CONFIG_KEY = 'examRoomConfig';
         const COLLEGE_NAME_KEY = 'examCollegeName'; // V48: New key
         const ABSENTEE_LIST_KEY = 'examAbsenteeList'; // V56: New key
+        const MAIN_DATA_STORE_KEY = 'uocExamMainData'; // V58: New key
 
         // --- Global var to hold data from the last *report run* ---
         let lastGeneratedRoomData = [];
@@ -1150,6 +1166,7 @@
         const finalPrintButton = document.getElementById('final-print-button');
         const clearReportButton = document.getElementById('clear-report-button');
         const roomCsvDownloadContainer = document.getElementById('room-csv-download-container');
+        const reportSessionSelect = document.getElementById('report-session-select'); // V58
         
         // --- Get references to all Navigation elements ---
         const viewExtractor = document.getElementById('view-extractor');
@@ -1333,15 +1350,23 @@
             await new Promise(resolve => setTimeout(resolve, 50));
 
             try {
-                // 1. Get RAW student data
-                const data = JSON.parse(jsonDataStore.innerHTML);
+                // V58: Filter data based on session dropdown
+                const selectedSession = reportSessionSelect.value;
+                let data = JSON.parse(jsonDataStore.innerHTML);
+                
+                if (selectedSession !== "ALL") {
+                    const [date, time] = selectedSession.split(' | ');
+                    data = data.filter(s => s.Date === date && s.Time === time);
+                }
+                // End V58 filter
+
                 if (!data || data.length === 0) {
-                    alert("No data to generate. Please run extraction first.");
+                    alert("No data found for the selected session. Please run extraction or load a CSV.");
                     return;
                 }
                 
                 // 2. Perform Room Allocation (V29 - uses central function)
-                const processed_rows_with_rooms = performRoomAllocation(data);
+                const processed_rows_with_rooms = performRoomAllocation(data); // V58: Use filtered data
                 
                 // 3. Store data for CSV
                 lastGeneratedRoomData = processed_rows_with_rooms;
@@ -1506,15 +1531,23 @@
             await new Promise(resolve => setTimeout(resolve, 50));
 
             try {
-                // 1. Get RAW student data
-                const data = JSON.parse(jsonDataStore.innerHTML);
+                // V58: Filter data based on session dropdown
+                const selectedSession = reportSessionSelect.value;
+                let data = JSON.parse(jsonDataStore.innerHTML);
+                
+                if (selectedSession !== "ALL") {
+                    const [date, time] = selectedSession.split(' | ');
+                    data = data.filter(s => s.Date === date && s.Time === time);
+                }
+                // End V58 filter
+
                 if (!data || data.length === 0) {
-                    alert("No data to generate. Please run extraction first.");
+                    alert("No data to generate for the selected session. Please run extraction or load a CSV.");
                     return;
                 }
                 
                 // 2. Perform Room Allocation (V29 - uses central function)
-                const processed_rows_with_rooms = performRoomAllocation(data);
+                const processed_rows_with_rooms = performRoomAllocation(data); // V58: Use filtered data
 
                 // 3. Group by Room to get SL No.
                 const roomSessions = {};
@@ -1998,9 +2031,18 @@
             await new Promise(resolve => setTimeout(resolve, 50));
             
             try {
-                const data = JSON.parse(qPaperDataStore.innerHTML);
+                // V58: Filter data based on session dropdown
+                const selectedSession = reportSessionSelect.value;
+                let data = JSON.parse(qPaperDataStore.innerHTML);
+
+                if (selectedSession !== "ALL") {
+                    const [date, time] = selectedSession.split(' | ');
+                    data = data.filter(s => s.Date === date && s.Time === time);
+                }
+                // End V58 filter
+                
                 if (!data || data.length === 0) {
-                    alert("No question paper data found. Please run an extraction first.");
+                    alert("No question paper data found for the selected session.");
                     return;
                 }
                 
@@ -2092,6 +2134,21 @@
             csvLoadStatus.textContent = "";
             correctedCsvUpload.value = ""; // Clear the file input
         }
+        
+        // V58: Function called by Python to clear persistent data
+        function clear_persistent_data() {
+            localStorage.removeItem(MAIN_DATA_STORE_KEY);
+            jsonDataStore.innerHTML = "";
+            qPaperDataStore.innerHTML = "";
+            console.log("Cleared persistent data.");
+        }
+        
+        // V58: Function called by Python to save data
+        function save_data_to_storage(jsonData) {
+            localStorage.setItem(MAIN_DATA_STORE_KEY, jsonData);
+            jsonDataStore.innerHTML = jsonData; // Also update the div
+            console.log("Saved main data to localStorage.");
+        }
 
         // V33: Add event listener for the new "Load CSV" button
         loadCsvButton.addEventListener('click', () => {
@@ -2174,8 +2231,10 @@
                 const qPaperArray = Object.values(qPaperSummary);
 
                 // --- Update Data Stores ---
-                jsonDataStore.innerHTML = JSON.stringify(jsonData);
+                const jsonDataString = JSON.stringify(jsonData);
+                jsonDataStore.innerHTML = jsonDataString;
                 qPaperDataStore.innerHTML = JSON.stringify(qPaperArray);
+                localStorage.setItem(MAIN_DATA_STORE_KEY, jsonDataString); // V58: Save to storage
                 
                 // --- Update UI ---
                 csvLoadStatus.textContent = `Successfully loaded and parsed ${jsonData.length} student records.`;
@@ -2227,7 +2286,9 @@
                 const sessions = new Set(allStudentData.map(s => `${s.Date} | ${s.Time}`));
                 allStudentSessions = Array.from(sessions).sort();
                 
-                sessionSelect.innerHTML = '<option value="">-- Select a Session --</option>'; // Clear
+                // V58: Clear both dropdowns
+                sessionSelect.innerHTML = '<option value="">-- Select a Session --</option>';
+                reportSessionSelect.innerHTML = '<option value="ALL">All Sessions (Bulk Print)</option>';
                 
                 // Find today's session
                 const today = new Date();
@@ -2235,7 +2296,10 @@
                 let defaultSession = "";
                 
                 allStudentSessions.forEach(session => {
-                    sessionSelect.innerHTML += `<option value="${session}">${session}</option>`;
+                    const optionHtml = `<option value="${session}">${session}</option>`;
+                    sessionSelect.innerHTML += optionHtml;
+                    reportSessionSelect.innerHTML += optionHtml; // V58
+                    
                     if (session.startsWith(todayStr)) {
                         defaultSession = session;
                     }
@@ -2243,6 +2307,7 @@
                 
                 if (defaultSession) {
                     sessionSelect.value = defaultSession;
+                    reportSessionSelect.value = defaultSession; // V58
                     sessionSelect.dispatchEvent(new Event('change')); // Trigger change to load list
                 }
 
@@ -2378,9 +2443,58 @@
             renderAbsenteeList();
         }
         
+        // --- (V58) NEW Function to load persistent data on startup ---
+        function loadDataFromStorage() {
+            const savedData = localStorage.getItem(MAIN_DATA_STORE_KEY);
+            if (!savedData) {
+                console.log("No persistent data found.");
+                disable_absentee_tab(true);
+                return;
+            }
+
+            console.log("Found persistent data. Loading...");
+            try {
+                // 1. Load main data
+                jsonDataStore.innerHTML = savedData;
+                const jsonData = JSON.parse(savedData);
+                allStudentData = jsonData; // V56: Populate global var
+
+                // 2. Re-calculate Q-Paper summary
+                const qPaperSummary = {};
+                for (const student of jsonData) {
+                    const key = `${student.Date}_${student.Time}_${student.Course}`;
+                    if (!qPaperSummary[key]) {
+                        qPaperSummary[key] = { 
+                            Date: student.Date, 
+                            Time: student.Time, 
+                            Course: student.Course, 
+                            'Student Count': 0 
+                        };
+                    }
+                    qPaperSummary[key]['Student Count']++;
+                }
+                qPaperDataStore.innerHTML = JSON.stringify(Object.values(qPaperSummary));
+                
+                // 3. Enable all report/absentee functions
+                generateReportButton.disabled = false;
+                generateQPaperReportButton.disabled = false;
+                generateDaywiseReportButton.disabled = false;
+                
+                disable_absentee_tab(false);
+                populate_session_dropdown();
+                
+                console.log(`Loaded ${jsonData.length} records from storage.`);
+                
+            } catch(e) {
+                console.error("Failed to load persistent data:", e);
+                localStorage.removeItem(MAIN_DATA_STORE_KEY); // Clear corrupted data
+            }
+        }
+        
+        
         // --- Run on initial page load ---
         loadRoomConfig();
-        disable_absentee_tab(true); // V56: Disable tab by default
+        loadDataFromStorage(); // V58: Load persistent data
 
     </script>
 
