@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Title -->
-    <title>UOC Exam Management V87 (QP-Fix)</title>
+    <title>UOC Exam Management V89 (Fixes)</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn-tailwindcss.vercel.app/"></script>
@@ -215,6 +215,11 @@
             .q-paper-table tfoot td { font-weight: bold; }
             
             /* --- (V29) Day-wise Report Styles --- */
+            /* V89: Added rule to keep header with table */
+            .print-header-group {
+                break-inside: avoid;
+            }
+            
             .print-page-daywise h1 { font-size: 14pt; }
             .print-page-daywise h2 { font-size: 12pt; margin-bottom: 0.5rem; }
             .print-page-daywise .column-container {
@@ -364,6 +369,11 @@
         .print-page .q-paper-table tfoot td { font-weight: bold; }
         
         /* --- (V29) Day-wise Report Styles --- */
+        /* V89: This applies on-screen too, which is fine */
+        .print-header-group {
+            break-inside: avoid;
+        }
+        
         .print-page-daywise h1 { font-size: 14pt; }
         .print-page-daywise h2 { font-size: 12pt; margin-bottom: 0.5rem; }
         .print-page-daywise .column-container {
@@ -490,8 +500,8 @@
     <nav id="main-nav" class="bg-indigo-600 text-white sticky top-0 z-50 shadow-lg">
         <!-- V83: Top Banner (Spanning Width, Centered Title) -->
         <div id="top-banner" class="w-full bg-indigo-700 text-center py-2">
-            <!-- V87: Updated Title -->
-            <h1 class="text-xl font-extrabold tracking-wider text-white">UOC Exam Management (V87)</h1>
+            <!-- V89: Updated Title -->
+            <h1 class="text-xl font-extrabold tracking-wider text-white">UOC Exam Management (V89)</h1>
         </div>
         
         <!-- V83: Navigation Tabs (Below Banner) -->
@@ -1250,7 +1260,7 @@
                                     log_status(f"No students found on page.", is_error=False, file_name=file_name, page=page_num)
                             
                             log_message(f"Found {total_students_in_file} students in this file.")
-                            # --- END V40 STATEFUL LOGIC ---
+                            # --- END V44 STATEFUL LOGIC ---
 
                     except Exception as e:
                         error_msg = f"CRITICAL ERROR processing file. Skipping this file. Details: {e}"
@@ -1342,7 +1352,7 @@
             
     </py-script>
 
-    <!-- *** JAVASCRIPT FOR ALL UI (V80) *** -->
+    <!-- *** JAVASCRIPT FOR ALL UI (V89) *** -->
     <script>
         // --- Global localStorage Key ---
         const ROOM_CONFIG_KEY = 'examRoomConfig';
@@ -1368,7 +1378,8 @@
         
         // --- (V58) Global var for QP Code data ---
         let allUniqueCourses = [];
-        let qpCodeMap = {}; // Holds { "Course Name": "QPCode" }
+        // V89: This is the master map that holds ALL codes for ALL sessions
+        let qpCodeMap = {}; 
 
         // --- Get references to all Report elements ---
         const generateReportButton = document.getElementById('generate-report-button');
@@ -1938,10 +1949,13 @@
 
                         allPagesHtml += `
                             <div class="print-page print-page-daywise">
-                                <!-- V49: Title Updated -->
-                                <h1>Seating Details for Candidates</h1>
-                                <!-- V48: Use college name -->
-                                <h2>${currentCollegeName} &nbsp;|&nbsp; ${session.Date} &nbsp;|&nbsp; ${session.Time}</h2>
+                                <!-- V89: Wrap headers in group to prevent page break -->
+                                <div class="print-header-group">
+                                    <!-- V49: Title Updated -->
+                                    <h1>Seating Details for Candidates</h1>
+                                    <!-- V48: Use college name -->
+                                    <h2>${currentCollegeName} &nbsp;|&nbsp; ${session.Date} &nbsp;|&nbsp; ${session.Time}</h2>
+                                </div>
                                 <div class="column-container">
                                     <div class="column">
                                         ${buildColumnTable(col1Students)}
@@ -2027,7 +2041,9 @@
                     totalPages++;
                     const courseData = courses[courseKey];
                     // V64 FIX: Use the clean key for lookup
-                    const qpCode = qpCodeMap[courseKey] || "____"; 
+                    // V89: Load session-specific codes
+                    const sessionCodes = qpCodeMap[sessionKey] || {};
+                    const qpCode = sessionCodes[courseKey] || "____"; 
                     
                     // V57: Add page break logic. Each course is a new page.
                     allPagesHtml += `
@@ -2772,7 +2788,7 @@
             renderAbsenteeList();
         }
         
-        // --- (V61) NEW QP CODE LOGIC (Session-Aware) ---
+        // --- (V89) NEW QP CODE LOGIC (DIFFERENT STRATEGY) ---
         
         function disable_qpcode_tab(disabled) {
             navQPCodes.disabled = disabled;
@@ -2787,6 +2803,7 @@
             }
         }
         
+        // V89: Loads the *entire* QP code map from localStorage into the global var
         function loadQPCodes() {
             qpCodeMap = JSON.parse(localStorage.getItem(QP_CODE_LIST_KEY) || '{}');
         }
@@ -2856,25 +2873,24 @@
             const sessionCourses = new Set(sessionStudents.map(s => s.Course));
             const uniqueCoursesArray = Array.from(sessionCourses).sort();
             
-            // 3. Load saved codes
+            // 3. V89: Load *all* codes, then get the ones for *this* session
             loadQPCodes();
+            const sessionCodes = qpCodeMap[sessionKey] || {};
             
             // 4. Populate the UI
-            // V87 FIX: Build HTML in an array and set innerHTML once to prevent parsing bugs.
             const htmlChunks = [];
             
             if (uniqueCoursesArray.length === 0) {
                 qpCodeContainer.innerHTML = '<p class="text-center text-gray-500">No courses found for this session.</p>';
-                saveQpCodesButton.disabled = true; // V62: Disable save button
+                saveQpCodesButton.disabled = true; 
                 return;
             }
 
             uniqueCoursesArray.forEach(courseName => {
-                // V74 FIX: Ensure the lookup key is always aggressively cleaned
                 const cleanKey = cleanCourseKey(courseName);
-                const savedCode = qpCodeMap[cleanKey] || "";
+                // V89: Look up the code in the session-specific map
+                const savedCode = sessionCodes[cleanKey] || "";
                 
-                // V87: Push to array
                 htmlChunks.push(`
                     <div class="flex items-center gap-3 p-2 border-b border-gray-200">
                         <label class="font-medium text-gray-700 w-2/3 text-sm">${courseName}</label>
@@ -2887,72 +2903,62 @@
                 `);
             });
             
-            // V87: Set innerHTML only once
             qpCodeContainer.innerHTML = htmlChunks.join('');
             
-            saveQpCodesButton.disabled = false; // V62: Enable save button once list is rendered
-            qpCodeStatus.textContent = ''; // V62: Clear status on new load
+            saveQpCodesButton.disabled = false;
+            qpCodeStatus.textContent = ''; // Clear status on new load
         }
         
-        // V62: Manual Save Button Handler
+        // V89: NEW SAVE STRATEGY
         saveQpCodesButton.addEventListener('click', () => {
-            // 1. Iterate over all visible inputs and update the global map
+            const sessionKey = sessionSelectQP.value;
+            if (!sessionKey) {
+                alert("No session selected.");
+                return;
+            }
+            
+            // 1. Load the entire master map from storage
+            // This ensures we don't overwrite other sessions
+            loadQPCodes(); 
+            
+            // 2. Create a new, empty map *just for this session's data*
+            const thisSessionCodes = {};
+            
+            // 3. Read all inputs from the DOM
             const qpInputs = qpCodeContainer.querySelectorAll('.qp-code-input');
             
-            // V83 FIX: Use a robust iteration method to ensure all inputs, including first/last, are processed
-            let saveCount = 0;
-            
-            // *** QP-FIX: Replaced forEach with a standard for loop for robustness ***
             for (let i = 0; i < qpInputs.length; i++) {
                 const input = qpInputs[i];
-                // V74 FIX: The data-course attribute is already clean, so use it as the key
-                const courseKey = input.dataset.course; 
+                const courseKey = input.dataset.course; // Already cleaned
                 const qpCode = input.value.trim();
 
-                if (courseKey) {
-                    // Update the global map. Only non-empty codes are saved.
-                    if (qpCode) {
-                        qpCodeMap[courseKey] = qpCode;
-                    } else {
-                        // If code is cleared, remove it from the map
-                        delete qpCodeMap[courseKey];
-                    }
-                    saveCount++;
+                if (courseKey && qpCode) {
+                    thisSessionCodes[courseKey] = qpCode;
                 }
             }
-            // *** END QP-FIX ***
 
-            // 2. Commit the global map (which was just updated) to localStorage
+            // 4. Update the master map with the new data for this session
+            qpCodeMap[sessionKey] = thisSessionCodes;
+
+            // 5. Save the *entire* master map back to localStorage
             localStorage.setItem(QP_CODE_LIST_KEY, JSON.stringify(qpCodeMap));
 
-            // 3. Show success message
+            // 6. Show success message
             qpCodeStatus.classList.remove('text-red-600');
             qpCodeStatus.classList.add('text-green-600');
             qpCodeStatus.textContent = `QP Codes saved successfully!`;
             setTimeout(() => { qpCodeStatus.textContent = ""; }, 2000);
         });
 
-        // V62: Input listener now just updates map and displays pending status
+        // V89: NEW INPUT STRATEGY
+        // The input listener is now *only* for user feedback.
+        // It does NOT update any data.
         qpCodeContainer.addEventListener('input', (e) => {
             if (e.target.classList.contains('qp-code-input')) {
-                // V74 FIX: Use the clean key from data-course
-                const courseName = e.target.dataset.course; 
-                const qpCode = e.target.value.trim();
-                
-                if (courseName) {
-                    // Update global map immediately (in memory)
-                    if (qpCode) {
-                        qpCodeMap[courseName] = qpCode;
-                    } else {
-                        // If code is cleared, remove it from the map
-                        delete qpCodeMap[courseName];
-                    }
-                    
-                    // Show pending status
-                    qpCodeStatus.classList.remove('text-green-600');
-                    qpCodeStatus.classList.add('text-red-600');
-                    qpCodeStatus.textContent = 'Unsaved changes... Click SAVE QP CODES to commit.';
-                }
+                // Show pending status
+                qpCodeStatus.classList.remove('text-green-600');
+                qpCodeStatus.classList.add('text-red-600');
+                qpCodeStatus.textContent = 'Unsaved changes... Click SAVE QP CODES to commit.';
             }
         });
 
