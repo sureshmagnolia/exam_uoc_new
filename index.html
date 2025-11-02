@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Title -->
-    <title>UOC Exam Management V90 (Fixes)</title>
+    <title>UOC Exam Management V91</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn-tailwindcss.vercel.app/"></script>
@@ -29,10 +29,10 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* --- Navigation Styles (V87: Rounder, Bigger) --- */
+        /* --- Navigation Styles (V91: Rounder, Bigger) --- */
         .nav-button {
             /* Base styles for all nav buttons */
-            /* V87: More rounded, more padding, bolder font */
+            /* V91: More rounded, more padding, bolder font */
             @apply py-2.5 px-5 rounded-t-xl text-sm font-semibold transition-all duration-200 text-white shadow; 
         }
         .nav-button-active {
@@ -44,18 +44,18 @@
             @apply opacity-90 hover:opacity-100 transform;
         }
 
-        /* V83: Main Nav Bar Adjustment */
+        /* V91: Main Nav Bar Adjustment */
         #top-banner {
             background-color: #4f46e5; /* Indigo-600 */
         }
         #main-nav-tabs {
-            /* V86: New background and padding for spacing */
+            /* V91: New background and padding for spacing */
             background-color: #1f2937; /* gray-800 */
             width: 100%;
             padding-top: 4px; /* Space for rounded tabs to lift */
         }
 
-        /* V86: Unique Button Colors */
+        /* V91: Unique Button Colors */
         #nav-extractor {
             background-color: #2563eb; /* blue-600 */
         }
@@ -365,6 +365,11 @@
             background-color: #eee;
         }
         
+        /* V89: This applies on-screen too, which is fine */
+        .print-header-group {
+            break-inside: avoid;
+        }
+
         .print-page .sl-col { width: 5%; }
         .print-page .course-col { width: 30%; } 
         .print-page .reg-col { width: 20%; }
@@ -378,11 +383,6 @@
         .print-page .q-paper-table tfoot td { font-weight: bold; }
         
         /* --- (V29) Day-wise Report Styles --- */
-        /* V89: This applies on-screen too, which is fine */
-        .print-header-group {
-            break-inside: avoid;
-        }
-        
         .print-page-daywise h1 { font-size: 14pt; }
         .print-page-daywise h2 { font-size: 12pt; margin-bottom: 0.5rem; }
         .print-page-daywise .column-container {
@@ -505,16 +505,15 @@
 </head>
 <body class="bg-gray-100 font-sans">
     
-    <!-- *** Main Navigation Bar (V83: UPDATED STRUCTURE) *** -->
+    <!-- *** Main Navigation Bar (V91: UPDATED STRUCTURE) *** -->
     <nav id="main-nav" class="bg-indigo-600 text-white sticky top-0 z-50 shadow-lg">
-        <!-- V83: Top Banner (Spanning Width, Centered Title) -->
+        <!-- V91: Top Banner (Spanning Width, Centered Title) -->
         <div id="top-banner" class="w-full bg-indigo-700 text-center py-2">
-            <!-- V90: Updated Title -->
-            <h1 class="text-xl font-extrabold tracking-wider text-white">UOC Exam Management (V90)</h1>
+            <!-- V91: Updated Title -->
+            <h1 class="text-xl font-extrabold tracking-wider text-white">UOC Exam Management (V91)</h1>
         </div>
         
-        <!-- V83: Navigation Tabs (Below Banner) -->
-        <!-- V86: Added justify-center and gap-2 for spacing -->
+        <!-- V91: Navigation Tabs (Below Banner) -->
         <div id="main-nav-tabs" class="container max-w-2xl mx-auto flex justify-center gap-2">
             <button id="nav-extractor" class="nav-button nav-button-active">Main Extractor</button>
             <button id="nav-settings" class="nav-button nav-button-inactive">Settings</button>
@@ -615,7 +614,7 @@
             <h1 class="text-3xl font-bold text-gray-800 mb-6">General Settings</h1>
             
             <!-- General Settings (College Name & Reset) -->
-            <div class="bg-red-50 border border-red-200 p-4 rounded-lg mb-6">
+            <div class="bg-gray-50 border border-gray-200 p-4 rounded-lg mb-6">
                  <h2 class="text-xl font-bold text-gray-800 mb-4 pb-2 border-b border-gray-300">
                     College Name
                 </h2>
@@ -627,7 +626,7 @@
                  <h2 class="text-xl font-bold text-gray-800 mb-4 pb-2 border-b border-gray-300">
                     Master Reset
                 </h2>
-                 <!-- V68: Master Reset Button -->
+                <!-- V68: Master Reset Button -->
                 <button id="master-reset-button" class="w-full inline-flex justify-center items-center rounded-md border border-red-700 bg-red-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-red-700 mt-2">
                     Master Reset: Clear ALL Local Data
                 </button>
@@ -864,7 +863,7 @@
         packages = ["pandas", "pdfplumber==0.9.0"]
     </py-config>
     
-    <!-- *** Python Script (V74 - FINAL STABLE PARSING/PERSISTENCE) *** -->
+    <!-- *** Python Script (V91 - COURSE CODE KEY) *** -->
     <py-script>
         import pandas as pd
         import pdfplumber
@@ -956,14 +955,14 @@
                 console.log(f"Sort Error: Could not parse Date '{row['Date']}' or Time '{row['Time']}'. Error: {e}")
                 return (datetime.min, datetime.min)
         
-        # --- V60: COURSE NAME NORMALIZER ---
+        # --- V91: COURSE NAME & CODE NORMALIZER ---
         def normalize_course_name(course_name):
             """Attempts to find a course code and standardize the name."""
             course_name = course_name.strip().replace('\n', ' ')
             
             # 1. Regex to find a course code, e.g., (ECO5B07) or [BCM5B07]
-            # This looks for 3 letters, a number, a letter, and 2 numbers
-            code_match = re.search(r'[\[\(-]{2}([A-Z]{3}\d[A-Z]\d{2,})[\]\)-]{2}', course_name, re.IGNORECASE)
+            # V91: This looks for 3 letters, a number, a letter, and 2 numbers
+            code_match = re.search(r'[\[\(-]{1,2}([A-Z]{3}\d[A-Z]\d{2,})[\]\)-]{1,2}', course_name, re.IGNORECASE)
             if not code_match:
                 code_match = re.search(r'([A-Z]{3}\d[A-Z]\d{2,})', course_name, re.IGNORECASE)
 
@@ -973,7 +972,7 @@
                 # 2. Extract the "clean name" part
                 # Take everything before the match, or before common markers
                 clean_name = course_name
-                stop_markers = ['(', '[', '/']
+                stop_markers = ['(', '[', '/', '--']
                 for marker in stop_markers:
                     if marker in clean_name:
                         clean_name = clean_name.split(marker)[0]
@@ -981,10 +980,10 @@
                 clean_name = clean_name.strip().replace('--', '').replace(':', '').upper()
                 
                 # 3. Rebuild the standardized name
-                return f"{clean_name}--({code})"
+                return f"{clean_name}--({code})", code
             
             # If no code found, just return the cleaned-up original
-            return re.sub(r'\s+', ' ', course_name).strip().upper()
+            return re.sub(r'\s+', ' ', course_name).strip().upper(), "UNKNOWN_CODE"
 
         # --- V40: STATEFUL PARSER for the "NEW" PDF format ---
         def extract_new_format_header(page_text):
@@ -1269,7 +1268,7 @@
                                     log_status(f"No students found on page.", is_error=False, file_name=file_name, page=page_num)
                             
                             log_message(f"Found {total_students_in_file} students in this file.")
-                            # --- END V44 STATEFUL LOGIC ---
+                            # --- END V40 STATEFUL LOGIC ---
 
                     except Exception as e:
                         error_msg = f"CRITICAL ERROR processing file. Skipping this file. Details: {e}"
@@ -1291,8 +1290,10 @@
                 log_message("Normalizing course names...")
                 normalized_rows = []
                 for row in all_exam_rows:
-                    normalized_course = normalize_course_name(row['Course'])
+                    # V91: Get both name and code
+                    normalized_course, course_code = normalize_course_name(row['Course'])
                     row['Course'] = normalized_course
+                    row['Course Code'] = course_code # V91: Add the code as a new key
                     normalized_rows.append(row)
                 all_exam_rows = normalized_rows
                 log_message("Course names normalized.")
@@ -1316,7 +1317,7 @@
                 log_message("Question paper summary generated.")
 
                 # --- 7. Create CSV and enable buttons ---
-                df_csv = df[['Date', 'Time', 'Course', 'Register Number', 'Name']]
+                df_csv = df[['Date', 'Time', 'Course', 'Course Code', 'Register Number', 'Name']]
                 csv_data = df_csv.to_csv(index=False, encoding='utf-8')
                 
                 blob = Blob.new([csv_data], {type: "text/csv;charset=utf-8"})
@@ -1361,7 +1362,7 @@
             
     </py-script>
 
-    <!-- *** JAVASCRIPT FOR ALL UI (V90) *** -->
+    <!-- *** JAVASCRIPT FOR ALL UI (V91) *** -->
     <script>
         // --- Global localStorage Key ---
         const ROOM_CONFIG_KEY = 'examRoomConfig';
@@ -1387,8 +1388,7 @@
         
         // --- (V58) Global var for QP Code data ---
         let allUniqueCourses = [];
-        // V89: This is the master map that holds ALL codes for ALL sessions
-        let qpCodeMap = {}; 
+        let qpCodeMap = {}; // V91: Now holds { "COURSE_CODE": "QPCode" }
 
         // --- Get references to all Report elements ---
         const generateReportButton = document.getElementById('generate-report-button');
@@ -1467,18 +1467,6 @@
         const reportsSessionDropdownContainer = document.getElementById('reports-session-dropdown-container');
         const reportsSessionSelect = document.getElementById('reports-session-select');
 
-
-        // --- V81 FIX: Aggressive Key Cleaning Function (Fixes 1st/Last course) ---
-        function cleanCourseKey(courseName) {
-            if (typeof courseName !== 'string') return '';
-            // Remove all non-standard chars (including BOM, non-breaking spaces, and control chars)
-            let cleaned = courseName.replace(/[\ufeff\u00A0\u200B\u200C\u200D\u200E\u200F\uFEFF]/g, ' ').toUpperCase(); 
-            // Remove ALL non-alphanumeric chars (except spaces, - ( ) [ ] / & , ; .)
-            cleaned = cleaned.replace(/[^\w\s\-\(\)\[\]\/&,;.]/g, ''); 
-            // Replace multiple spaces with one, then trim
-            return cleaned.replace(/\s+/g, ' ').trim();
-        }
-        
         
         // --- Helper function to numerically sort room keys ---
         function getNumericSortKey(key) {
@@ -1490,6 +1478,7 @@
         
         // --- (V28) Helper function to create a new room row HTML (with location) ---
         function createRoomRowHtml(roomName, capacity, location, isLast = false) {
+            // V79: Add/remove button only on last row
             const removeButtonHtml = isLast ? 
                 `<button class="remove-room-button ml-auto text-sm text-red-600 hover:text-red-800 font-medium">&times; Remove</button>` : 
                 `<div class="w-[84px]"></div>`; // Placeholder for alignment
@@ -1532,7 +1521,7 @@
             if (Object.keys(roomConfig).length === 0) {
                 // *** (V27): Default to 30 rooms ***
                 console.log("Using default room config (30 rooms of 30)");
-                config = {};
+                let config = {}; // V80: Use local var
                 for (let i = 1; i <= 30; i++) {
                     config[`Room ${i}`] = { capacity: 30, location: "" };
                 }
@@ -1540,15 +1529,17 @@
                 currentRoomConfig = config; // Update global var
             } else {
                 console.log("Using saved room config:", roomConfig);
-                const sortedRoomKeys = Object.keys(roomConfig).sort((a, b) => {
-                    const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
-                    const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
-                    return numA - numB;
-                });
-                roomNames = sortedRoomKeys;
-                // (V28) Get capacity from the new object structure
-                roomCapacities = sortedRoomKeys.map(key => roomConfig[key].capacity);
             }
+            
+            // V80: Read keys from the *global* var which is now set
+            const sortedRoomKeys = Object.keys(currentRoomConfig).sort((a, b) => {
+                const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
+                const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
+                return numA - numB;
+            });
+            roomNames = sortedRoomKeys;
+            roomCapacities = sortedRoomKeys.map(key => currentRoomConfig[key].capacity);
+
             return { roomNames, roomCapacities };
         }
         
@@ -1885,7 +1876,7 @@
                 // 7. Build the HTML
                 let allPagesHtml = '';
                 let totalPagesGenerated = 0;
-                // V77: Updated for better fit (35 per column)
+                // V80: Updated for better fit (35 per column)
                 const STUDENTS_PER_COLUMN = 35; 
                 const COLUMNS_PER_PAGE = 2; 
                 const STUDENTS_PER_PAGE = STUDENTS_PER_COLUMN * COLUMNS_PER_PAGE; 
@@ -2024,11 +2015,12 @@
                 const courses = {};
                 for (const student of sessionStudents) {
                     const courseDisplay = student.Course;
-                    const courseKey = cleanCourseKey(courseDisplay); // V64 FIX: Ensure course key is aggressively cleaned
+                    // V91: Use Course Code as the key
+                    const courseKey = student['Course Code'];
                     
                     if (!courses[courseKey]) {
                         courses[courseKey] = {
-                            name: courseDisplay,
+                            name: courseDisplay, // Store the full display name
                             present: [],
                             absent: []
                         };
@@ -2052,10 +2044,8 @@
                 for (const courseKey of sortedCourseKeys) {
                     totalPages++;
                     const courseData = courses[courseKey];
-                    // V64 FIX: Use the clean key for lookup
-                    // V89: Load session-specific codes
-                    const sessionCodes = qpCodeMap[sessionKey] || {};
-                    const qpCode = sessionCodes[courseKey] || "____"; 
+                    // V91: Use the courseKey for lookup
+                    const qpCode = qpCodeMap[courseKey] || "____"; 
                     
                     // V57: Add page break logic. Each course is a new page.
                     allPagesHtml += `
@@ -2068,7 +2058,7 @@
                                 <h3>${date} &nbsp;|&nbsp; ${time}</h3>
                             </div>
                         
-                            <table class="absentee-report-table">
+                            <table class="absentee-report-table print-table">
                                 <thead>
                                     <tr>
                                         <!-- V58: Added QP Code -->
@@ -2146,7 +2136,7 @@
             }
             
             // (V28) Add Location to CSV
-            const headers = ['Date', 'Time', 'Course', 'Register Number', 'Name', 'Room No', 'Location'];
+            const headers = ['Date', 'Time', 'Course', 'Course Code', 'Register Number', 'Name', 'Room No', 'Location'];
             let csvContent = headers.join(",") + "\n";
             
             lastGeneratedRoomData.forEach(row => {
@@ -2183,16 +2173,17 @@
         navQPCodes.addEventListener('click', () => showView(viewQPCodes, navQPCodes)); // V58
         navReports.addEventListener('click', () => showView(viewReports, navReports));
         navAbsentees.addEventListener('click', () => showView(viewAbsentees, navAbsentees)); // V56
-        // V82: New tab structure
-        document.getElementById('nav-room-settings').addEventListener('click', () => showView(document.getElementById('view-room-settings'), document.getElementById('nav-room-settings')));
+        navRoomSettings.addEventListener('click', () => showView(viewRoomSettings, navRoomSettings)); // V83
 
         function showView(viewToShow, buttonToActivate) {
             allViews.forEach(view => view.classList.add('hidden'));
             allNavButtons.forEach(btn => {
+                // V91: Reset to base inactive state
                 btn.classList.add('nav-button-inactive');
                 btn.classList.remove('nav-button-active');
             });
             viewToShow.classList.remove('hidden');
+            // V91: Apply active state
             buttonToActivate.classList.remove('nav-button-inactive');
             buttonToActivate.classList.add('nav-button-active');
             
@@ -2478,8 +2469,8 @@
             };
             reader.onerror = () => {
                 csvLoadStatus.textContent = "Error reading file.";
-                document.getElementById('pdf-file').disabled = true;
-                document.getElementById('run-button').disabled = true;
+                document.getElementById('pdf-file').disabled = false;
+                document.getElementById('run-button').disabled = false;
             };
             reader.readAsText(file);
         });
@@ -2495,11 +2486,12 @@
                 const dateIndex = headers.indexOf('Date');
                 const timeIndex = headers.indexOf('Time');
                 const courseIndex = headers.indexOf('Course');
+                const courseCodeIndex = headers.indexOf('Course Code'); // V91
                 const regNumIndex = headers.indexOf('Register Number');
                 const nameIndex = headers.indexOf('Name');
 
-                if (regNumIndex === -1 || nameIndex === -1 || courseIndex === -1) {
-                    csvLoadStatus.textContent = "Error: CSV must contain 'Register Number', 'Name', and 'Course' headers.";
+                if (regNumIndex === -1 || nameIndex === -1 || courseIndex === -1 || courseCodeIndex === -1) {
+                    csvLoadStatus.textContent = "Error: CSV must contain 'Date', 'Time', 'Course', 'Course Code', 'Register Number', and 'Name' headers.";
                     csvLoadStatus.classList.add('text-red-600');
                     csvLoadStatus.classList.remove('text-green-600');
                     // V67: Re-enable PDF inputs
@@ -2527,6 +2519,7 @@
                         'Date': values[dateIndex],
                         'Time': values[timeIndex],
                         'Course': values[courseIndex], // V60: This name should be normalized already
+                        'Course Code': values[courseCodeIndex], // V91
                         'Register Number': values[regNumIndex],
                         'Name': values[nameIndex]
                     };
@@ -2806,7 +2799,7 @@
             renderAbsenteeList();
         }
         
-        // --- (V89) NEW QP CODE LOGIC (DIFFERENT STRATEGY) ---
+        // --- (V91) NEW QP CODE LOGIC (Using Course Code as Key) ---
         
         function disable_qpcode_tab(disabled) {
             navQPCodes.disabled = disabled;
@@ -2821,12 +2814,12 @@
             }
         }
         
-        // V89: Loads the *entire* QP code map from localStorage into the global var
+        // V91: Loads the *entire* QP code map (keyed by Course Code)
         function loadQPCodes() {
             qpCodeMap = JSON.parse(localStorage.getItem(QP_CODE_LIST_KEY) || '{}');
         }
         
-        // V61: Populates the QP Code session dropdown
+        // V91: Populates the QP Code session dropdown
         function populate_qp_code_session_dropdown() {
             try {
                 if (allStudentData.length === 0) {
@@ -2866,7 +2859,7 @@
             }
         }
 
-        // V61: Event listener for the QP Code session dropdown
+        // V91: Event listener for the QP Code session dropdown
         sessionSelectQP.addEventListener('change', () => {
             const sessionKey = sessionSelectQP.value;
             if (sessionKey) {
@@ -2880,42 +2873,38 @@
             }
         });
         
-        // V61: Renders the course list for the selected session
+        // V91: Renders the course list for the selected session
         function render_qp_code_list(sessionKey) {
             
             // 1. Filter students for this specific session
             const [date, time] = sessionKey.split(' | ');
             const sessionStudents = allStudentData.filter(s => s.Date === date && s.Time === time);
             
-            // 2. Get unique courses for this session
-            const sessionCourses = new Set(sessionStudents.map(s => s.Course));
-            const uniqueCoursesArray = Array.from(sessionCourses).sort();
+            // 2. Get unique courses for this session (using a Map to link code and name)
+            const courseMap = new Map();
+            sessionStudents.forEach(s => {
+                if (s['Course Code'] !== 'UNKNOWN_CODE') {
+                    courseMap.set(s['Course Code'], s.Course); // Use code as key, name as value
+                }
+            });
             
-            // 3. V89: Load *all* codes, then get the ones for *this* session
-            loadQPCodes();
-            const sessionCodes = qpCodeMap[sessionKey] || {};
+            // 3. Load saved codes
+            loadQPCodes(); // Loads the master map { "BOT3CJ201": "12345" }
             
             // 4. Populate the UI
             const htmlChunks = [];
             
-            if (uniqueCoursesArray.length === 0) {
+            // Sort by course name
+            const sortedCourses = [...courseMap.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+
+            if (sortedCourses.length === 0) {
                 qpCodeContainer.innerHTML = '<p class="text-center text-gray-500">No courses found for this session.</p>';
                 saveQpCodesButton.disabled = true; 
                 return;
             }
 
-            uniqueCoursesArray.forEach(courseName => {
-                const cleanKey = cleanCourseKey(courseName);
-
-                // V90 FIX: If the course name cleans to an empty string,
-                // don't render an input for it as it cannot be saved.
-                if (!cleanKey) {
-                    console.warn(`Skipping QP code input for un-keyable course: ${courseName}`);
-                    return; // Skip this iteration
-                }
-                
-                // V89: Look up the code in the session-specific map
-                const savedCode = sessionCodes[cleanKey] || "";
+            sortedCourses.forEach(([courseCode, courseName]) => {
+                const savedCode = qpCodeMap[courseCode] || "";
                 
                 htmlChunks.push(`
                     <div class="flex items-center gap-3 p-2 border-b border-gray-200">
@@ -2923,7 +2912,7 @@
                         <input type="text" 
                                class="qp-code-input block w-1/3 p-2 border border-gray-300 rounded-md shadow-sm text-sm" 
                                value="${savedCode}" 
-                               data-course="${cleanKey}" 
+                               data-course-code="${courseCode}" 
                                placeholder="Enter QP Code">
                     </div>
                 `);
@@ -2931,60 +2920,52 @@
             
             qpCodeContainer.innerHTML = htmlChunks.join('');
             
-            saveQpCodesButton.disabled = false;
-            qpCodeStatus.textContent = ''; // Clear status on new load
+            saveQpCodesButton.disabled = false; // V62: Enable save button once list is rendered
+            qpCodeStatus.textContent = ''; // V62: Clear status on new load
         }
         
-        // V89: NEW SAVE STRATEGY
+        // V91: Manual Save Button Handler (saves to master map)
         saveQpCodesButton.addEventListener('click', () => {
-            const sessionKey = sessionSelectQP.value;
-            if (!sessionKey) {
-                alert("No session selected.");
-                return;
-            }
-            
-            // 1. Load the entire master map from storage
-            // This ensures we don't overwrite other sessions
+            // 1. Load the entire master map
             loadQPCodes(); 
             
-            // 2. Create a new, empty map *just for this session's data*
-            const thisSessionCodes = {};
-            
-            // 3. Read all inputs from the DOM
+            // 2. Iterate over all visible inputs and update the global map
             const qpInputs = qpCodeContainer.querySelectorAll('.qp-code-input');
             
-            for (let i = 0; i < qpInputs.length; i++) {
-                const input = qpInputs[i];
-                const courseKey = input.dataset.course; // Already cleaned
+            qpInputs.forEach(input => {
+                const courseCode = input.dataset.courseCode; // V91: Use the Course Code
                 const qpCode = input.value.trim();
 
-                if (courseKey && qpCode) {
-                    thisSessionCodes[courseKey] = qpCode;
+                if (courseCode) {
+                    qpCodeMap[courseCode] = qpCode; 
                 }
-            }
+            });
 
-            // 4. Update the master map with the new data for this session
-            qpCodeMap[sessionKey] = thisSessionCodes;
-
-            // 5. Save the *entire* master map back to localStorage
+            // 3. Commit the *entire* master map back to localStorage
             localStorage.setItem(QP_CODE_LIST_KEY, JSON.stringify(qpCodeMap));
 
-            // 6. Show success message
+            // 4. Show success message
             qpCodeStatus.classList.remove('text-red-600');
             qpCodeStatus.classList.add('text-green-600');
             qpCodeStatus.textContent = `QP Codes saved successfully!`;
             setTimeout(() => { qpCodeStatus.textContent = ""; }, 2000);
         });
 
-        // V89: NEW INPUT STRATEGY
-        // The input listener is now *only* for user feedback.
-        // It does NOT update any data.
+        // V91: Input listener now just updates in-memory map and displays pending status
         qpCodeContainer.addEventListener('input', (e) => {
             if (e.target.classList.contains('qp-code-input')) {
-                // Show pending status
-                qpCodeStatus.classList.remove('text-green-600');
-                qpCodeStatus.classList.add('text-red-600');
-                qpCodeStatus.textContent = 'Unsaved changes... Click SAVE QP CODES to commit.';
+                const courseCode = e.target.dataset.courseCode; // V91: Use Course Code
+                const qpCode = e.target.value.trim();
+                
+                if (courseCode) {
+                    // Update global map *in memory only*
+                    qpCodeMap[courseCode] = qpCode;
+                    
+                    // Show pending status
+                    qpCodeStatus.classList.remove('text-green-600');
+                    qpCodeStatus.classList.add('text-red-600');
+                    qpCodeStatus.textContent = 'Unsaved changes... Click SAVE QP CODES to commit.';
+                }
             }
         });
 
