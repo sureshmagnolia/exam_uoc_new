@@ -29,17 +29,18 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* --- Navigation Styles (V83: Tab-based structure) --- */
+        /* --- Navigation Styles (V86: Unique Colors) --- */
         .nav-button {
-            @apply py-2 px-4 rounded-t-lg text-sm font-medium transition-colors;
+            /* Base styles for all nav buttons */
+            @apply py-2 px-4 rounded-t-lg text-sm font-medium transition-all duration-200 text-white shadow; 
         }
         .nav-button-active {
-            /* V83: Active Tab Style */
-            @apply bg-white text-indigo-700 shadow-md;
+            /* Active state: Taller, lighter bg, dark text */
+            @apply shadow-lg scale-105 transform -translate-y-1; 
         }
         .nav-button-inactive {
-            /* V83: Inactive Tab Style */
-            @apply text-gray-300 hover:bg-gray-700 hover:text-white;
+            /* Inactive state: Darker bg, white text, slight fade */
+            @apply opacity-90 hover:opacity-100 transform;
         }
 
         /* V83: Main Nav Bar Adjustment */
@@ -47,9 +48,61 @@
             background-color: #4f46e5; /* Indigo-600 */
         }
         #main-nav-tabs {
-            background-color: #3730a3; /* Indigo-800 */
+            /* V86: New background and padding for spacing */
+            background-color: #1f2937; /* gray-800 */
             width: 100%;
+            padding-top: 4px; /* Space for rounded tabs to lift */
         }
+
+        /* V86: Unique Button Colors */
+        #nav-extractor {
+            background-color: #2563eb; /* blue-600 */
+        }
+        #nav-extractor.nav-button-active {
+            background-color: #dbeafe; /* blue-100 */
+            color: #1d4ed8; /* blue-700 */
+        }
+
+        #nav-settings {
+            background-color: #16a34a; /* green-600 */
+        }
+        #nav-settings.nav-button-active {
+            background-color: #dcfce7; /* green-100 */
+            color: #15803d; /* green-700 */
+        }
+
+        #nav-room-settings {
+            background-color: #9333ea; /* purple-600 */
+        }
+        #nav-room-settings.nav-button-active {
+            background-color: #f3e8ff; /* purple-100 */
+            color: #7e22ce; /* purple-700 */
+        }
+
+        #nav-qpcodes {
+            background-color: #ca8a04; /* yellow-600 */
+        }
+        #nav-qpcodes.nav-button-active {
+            background-color: #fef9c3; /* yellow-100 */
+            color: #a16207; /* yellow-700 */
+        }
+
+        #nav-reports {
+            background-color: #dc2626; /* red-600 */
+        }
+        #nav-reports.nav-button-active {
+            background-color: #fee2e2; /* red-100 */
+            color: #b91c1c; /* red-700 */
+        }
+
+        #nav-absentees {
+            background-color: #db2777; /* pink-600 */
+        }
+        #nav-absentees.nav-button-active {
+            background-color: #fce7f3; /* pink-100 */
+            color: #be185d; /* pink-700 */
+        }
+
 
         /* --- PRINT STYLES --- */
         @media print {
@@ -440,7 +493,8 @@
         </div>
         
         <!-- V83: Navigation Tabs (Below Banner) -->
-        <div id="main-nav-tabs" class="container max-w-2xl mx-auto flex">
+        <!-- V86: Added justify-center and gap-2 for spacing -->
+        <div id="main-nav-tabs" class="container max-w-2xl mx-auto flex justify-center gap-2">
             <button id="nav-extractor" class="nav-button nav-button-active">Main Extractor</button>
             <button id="nav-settings" class="nav-button nav-button-inactive">Settings</button>
             <button id="nav-room-settings" class="nav-button nav-button-inactive">Room Settings</button> 
@@ -3007,3 +3061,4 @@
 
 </body>
 </html>
+
