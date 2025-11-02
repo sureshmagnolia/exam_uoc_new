@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Title -->
-    <title>UOC Exam Management V18</title>
+    <title>UOC Exam Management V19</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -244,7 +244,7 @@
             
             <header class="mb-6">
                 <!-- Updated Title -->
-                <h1 class="text-3xl font-bold text-gray-800">UOC Exam Management (V18)</h1>
+                <h1 class="text-3xl font-bold text-gray-800">UOC Exam Management (V19)</h1>
                 <p class="text-gray-600 mt-2">
                     Upload multiple Nominal Roll PDFs at once, assign to rooms based on
                     <span class="font-medium text-indigo-600">custom capacities</span>, and print reports.
@@ -287,7 +287,7 @@
                 </div>
             </div>
 
-            <!-- NEW (V18): Status Log -->
+            <!-- (V18): Status Log -->
             <div class="mt-6">
                 <h3 class="text-lg font-medium text-gray-900">Status Log:</h3>
                 <div id="status-log" class="w-full h-48 p-3 mt-2 bg-gray-100 border border-gray-300 text-gray-800 text-sm font-mono rounded-md overflow-y-auto">
@@ -372,15 +372,13 @@
     <div id="json-data-store" class="hidden"></div>
     <div id="q-paper-data-store" class="hidden"></div>
 
-    <!-- *** REMOVED (V18): Error/Success Modal *** -->
-
 
     <!-- Define Python Environment -->
     <py-config>
         packages = ["pandas", "pdfplumber==0.7.1"]
     </py-config>
     
-    <!-- *** UPDATED: Python Script (V18 - New Status Log) *** -->
+    <!-- *** Python Script (V18) *** -->
     <py-script>
         import pandas as pd
         import pdfplumber
@@ -394,7 +392,7 @@
         
         # --- Get references to our HTML elements ---
         status_div = document.getElementById("status")
-        status_log_div = document.getElementById("status-log") # NEW (V18)
+        status_log_div = document.getElementById("status-log") # (V18)
         
         csv_download_container = document.getElementById("csv-download-container")
         generate_report_button = document.getElementById("generate-report-button")
@@ -417,7 +415,7 @@
             status_div.innerHTML += f'<p class="mb-1">&gt; {message}</p>'
             status_div.scrollTop = status_div.scrollHeight
 
-        # NEW (V18): Logs to the new Status Log window
+        # (V18): Logs to the new Status Log window
         def log_status(message, is_error=False, file_name=None, page=None):
             """Helper function to print messages to the HTML Status log."""
             console.log(f"Status Log: {message}")
@@ -487,7 +485,7 @@
                 json_data_store.innerHTML = ""
                 q_paper_data_store.innerHTML = ""
                 status_div.innerHTML = ""
-                status_log_div.innerHTML = "Waiting for extraction to complete..." # NEW (V18)
+                status_log_div.innerHTML = "Waiting for extraction to complete..." # (V18)
                 report_controls.classList.add("hidden")
                 report_output_area.innerHTML = ""
                 report_output_area.style.display = 'none'
@@ -499,7 +497,7 @@
                                 
                 if file_list.length == 0:
                     log_message("Error: Please select one or more PDF files first.")
-                    log_status("Error: Please select one or more PDF files first.", is_error=True) # NEW (V18)
+                    log_status("Error: Please select one or more PDF files first.", is_error=True) # (V18)
                     errors_list.append("No files selected") # Add to error count
                     return # Stop execution
                 
@@ -608,12 +606,12 @@
                                         except Exception as e:
                                             error_msg = f"Skipping row. Details: {e}"
                                             log_message(f"Warning: {error_msg}")
-                                            log_status(error_msg, is_error=True, file_name=file_name, page=i+1) # NEW (V18)
+                                            log_status(error_msg, is_error=True, file_name=file_name, page=i+1) # (V18)
                                             errors_list.append(error_msg) # Add to error count
                     except Exception as e:
                         error_msg = f"CRITICAL ERROR processing file. Skipping this file. Details: {e}"
                         log_message(error_msg)
-                        log_status(error_msg, is_error=True, file_name=file_name, page="N/A") # NEW (V18)
+                        log_status(error_msg, is_error=True, file_name=file_name, page="N/A") # (V18)
                         errors_list.append(error_msg) # Add to error count
                 
                 log_message("--- Batch processing complete. ---")
@@ -668,10 +666,10 @@
             except Exception as e:
                 error_msg = f"An error occurred: {e}"
                 log_message(error_msg)
-                log_status(error_msg, is_error=True, file_name="Application", page="N/A") # NEW (V18)
+                log_status(error_msg, is_error=True, file_name="Application", page="N/A") # (V18)
                 errors_list.append(error_msg) # Add to error count
             finally:
-                # --- NEW (V18): Log final status message ---
+                # (V18): Log final status message
                 if not errors_list:
                     if file_list.length > 0: # Only show success if files were processed
                         log_status("Success: All files processed with no errors.", is_error=False)
@@ -680,7 +678,7 @@
             
     </py-script>
 
-    <!-- *** UPDATED: JAVASCRIPT FOR ALL UI (V18 - Modal Removed) *** -->
+    <!-- *** UPDATED: JAVASCRIPT FOR ALL UI (V19 - Default 50 rooms) *** -->
     <script>
         // --- Global localStorage Key ---
         const ROOM_CONFIG_KEY = 'examRoomConfig';
@@ -717,9 +715,6 @@
         const qPaperDataStore = document.getElementById('q-paper-data-store');
         const generateQPaperReportButton = document.getElementById('generate-qpaper-report-button');
         
-        // --- REMOVED (V18): Modal elements ---
-
-
         // --- Helper function to numerically sort room keys ---
         function getNumericSortKey(key) {
             const parts = key.split('_'); // Date_Time_Room 1
@@ -771,9 +766,10 @@
             let roomCapacities = [];
             
             if (Object.keys(roomConfig).length === 0) {
-                console.log("Using default room config (20 rooms of 30)");
-                roomNames = Array.from({length: 20}, (_, i) => `Room ${i + 1}`);
-                roomCapacities = Array(20).fill(30);
+                // *** UPDATED (V19): Default to 50 rooms ***
+                console.log("Using default room config (50 rooms of 30)");
+                roomNames = Array.from({length: 50}, (_, i) => `Room ${i + 1}`);
+                roomCapacities = Array(50).fill(30);
             } else {
                 console.log("Using saved room config:", roomConfig);
                 const sortedRoomKeys = Object.keys(roomConfig).sort((a, b) => {
@@ -1101,8 +1097,10 @@
             }
             
             if (Object.keys(config).length === 0) {
+                // *** UPDATED (V19): Default to 50 rooms ***
+                console.log("Using default room config (50 rooms of 30)");
                 config = {};
-                for (let i = 1; i <= 20; i++) {
+                for (let i = 1; i <= 50; i++) {
                     config[`Room ${i}`] = 30;
                 }
                 localStorage.setItem(ROOM_CONFIG_KEY, JSON.stringify(config));
@@ -1207,9 +1205,6 @@
                 generateQPaperReportButton.textContent = "Generate Question Paper Report";
             }
         });
-        
-        
-        // --- REMOVED (V18): Modal control logic ---
         
         // --- Run on initial page load ---
         loadRoomConfig();
