@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Title -->
-    <title>UOC Exam Management V19</title>
+    <title>UOC Exam Management V25</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -229,27 +229,27 @@
 </head>
 <body class="bg-gray-100 font-sans">
     
-    <!-- *** Main Navigation Bar *** -->
+    <!-- *** Main Navigation Bar (V25 Style Update) *** -->
     <nav id="main-nav" class="bg-gray-800 text-white p-4 sticky top-0 z-50">
-        <div class="container max-w-2xl mx-auto flex gap-4">
-            <button id="nav-extractor" class="nav-button nav-button-active">Main Extractor</button>
-            <button id="nav-settings" class="nav-button nav-button-inactive">Room Settings</button>
-            <button id="nav-reports" class="nav-button nav-button-inactive">Reports</button>
+        <div class="container max-w-2xl mx-auto flex justify-between items-center">
+            <!-- New Title Here -->
+            <h1 class="text-lg font-bold text-white bg-red-600 px-3 py-1 rounded-md shadow-md">UOC Exam Management (V25)</h1>
+            
+            <!-- Navigation buttons on the right -->
+            <div class="flex gap-4">
+                <button id="nav-extractor" class="nav-button nav-button-active">Main Extractor</button>
+                <button id="nav-settings" class="nav-button nav-button-inactive">Room Settings</button>
+                <button id="nav-reports" class="nav-button nav-button-inactive">Reports</button>
+            </div>
         </div>
     </nav>
 
-    <!-- *** "Extractor" View *** -->
+    <!-- *** "Extractor" View (V21 Update: Title Added) *** -->
     <div id="view-extractor" class="container max-w-2xl mx-auto p-4 min-h-screen">
         <div class="bg-white p-8 rounded-lg shadow-xl w-full">
             
-            <header class="mb-6">
-                <!-- Updated Title -->
-                <h1 class="text-3xl font-bold text-gray-800">UOC Exam Management (V19)</h1>
-                <p class="text-gray-600 mt-2">
-                    Upload multiple Nominal Roll PDFs at once, assign to rooms based on
-                    <span class="font-medium text-indigo-600">custom capacities</span>, and print reports.
-                </p>
-            </header>
+            <!-- New Title as requested -->
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">Data Extractor</h1>
 
             <!-- How to Use Instructions -->
             <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-md mb-6">
@@ -324,10 +324,10 @@
         </div>
     </div>
     
-    <!-- *** "Reports" View (Functional) *** -->
+    <!-- *** "Reports" View (V22 Update: Title changed) *** -->
     <div id="view-reports" class="container max-w-2xl mx-auto p-4 min-h-screen hidden">
         <div class="bg-white p-8 rounded-lg shadow-xl w-full">
-            <h1 class="text-3xl font-bold text-gray-800 mb-6">Additional Reports</h1>
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">Reports</h1>
             <p class="text-gray-600 mb-4">
                 Generate reports based on the last batch extraction. (Buttons are enabled after extraction.)
             </p>
@@ -605,7 +605,7 @@
                                                 })
                                         except Exception as e:
                                             error_msg = f"Skipping row. Details: {e}"
-                                            log_message(f"Warning: {error_msg}")
+                                            log_message(f"Warning: {e}")
                                             log_status(error_msg, is_error=True, file_name=file_name, page=i+1) # (V18)
                                             errors_list.append(error_msg) # Add to error count
                     except Exception as e:
@@ -1027,6 +1027,7 @@
             lastGeneratedRoomData.forEach(row => {
                 const values = headers.map(header => {
                     let val = row[header] ? row[header].toString() : "";
+                    // *** FIX: Corrected invalid regex flags from /"/Lg to /"/g ***
                     val = val.replace(/"/g, '""');
                     if (val.includes(',')) {
                         val = `"${val}"`;
@@ -1213,3 +1214,4 @@
 
 </body>
 </html>
+
