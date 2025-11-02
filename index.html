@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Title -->
-    <title>UOC Exam Management V49</title>
+    <title>UOC Exam Management V57</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -44,7 +44,7 @@
         /* --- PRINT STYLES --- */
         @media print {
             /* Hide the main app container and all other non-report elements */
-            #main-nav, #view-extractor, #view-settings, #view-reports, body > py-config, body > py-script, #report-controls {
+            #main-nav, #view-extractor, #view-settings, #view-reports, #view-absentees, body > py-config, body > py-script, #report-controls {
                 display: none !important; /* Be forceful */
             }
             
@@ -176,6 +176,48 @@
             .daywise-report-table th {
                 background: #eee;
             }
+            
+            /* --- (V56) Absentee Report Styles --- */
+            .absentee-report-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 10pt;
+                margin-top: 1rem;
+            }
+            .absentee-report-table th,
+            .absentee-report-table td {
+                border: 1px solid #000;
+                padding: 5px;
+                text-align: left;
+            }
+            .absentee-report-table th {
+                background-color: #eee;
+                font-weight: bold;
+            }
+            .absentee-report-table .regno-list {
+                /* V56: Use flex-wrap for register numbers */
+                display: flex;
+                flex-wrap: wrap;
+                gap: 5px;
+            }
+            .absentee-report-table .regno-list span {
+                padding: 2px 4px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                background-color: #f9f9f9;
+            }
+            .absentee-footer {
+                margin-top: 4rem;
+                padding-top: 1rem;
+                font-size: 11pt;
+                font-weight: bold;
+                float: right;
+            }
+            .absentee-footer .signature {
+                margin-top: 4rem;
+                border-top: 1px solid black;
+                padding-top: 4px;
+            }
         }
         /* --- END PRINT STYLES --- */
 
@@ -283,6 +325,74 @@
             background: #f0f0f0;
         }
         
+        /* --- (V56) Absentee Report Styles --- */
+        .absentee-report-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10pt;
+            margin-top: 1rem;
+        }
+        .absentee-report-table th,
+        .absentee-report-table td {
+            border: 1px solid #000;
+            padding: 5px;
+            text-align: left;
+            vertical-align: top;
+        }
+        .absentee-report-table th {
+            background-color: #eee;
+            font-weight: bold;
+        }
+        .absentee-report-table .regno-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            line-height: 1.6;
+        }
+        .absentee-report-table .regno-list span {
+            padding: 1px 4px;
+            border-radius: 4px;
+            background-color: #f4f4f4;
+        }
+        .absentee-footer {
+            margin-top: 4rem;
+            padding-top: 1rem;
+            font-size: 11pt;
+            font-weight: bold;
+            float: right;
+        }
+        .absentee-footer .signature {
+            margin-top: 4rem;
+            border-top: 1px solid black;
+            padding-top: 4px;
+        }
+
+        /* --- (V56) Autocomplete Styles --- */
+        .autocomplete-container {
+            position: relative;
+        }
+        .autocomplete-results {
+            position: absolute;
+            border: 1px solid #d1d5db;
+            background-color: #ffffff;
+            max-height: 200px;
+            overflow-y: auto;
+            width: 100%;
+            z-index: 10;
+            border-radius: 0 0 0.375rem 0.375rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .autocomplete-item {
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+        }
+        .autocomplete-item:hover, .autocomplete-item-active {
+            background-color: #f3f4f6;
+        }
+        .autocomplete-item strong {
+            color: #4f46e5;
+        }
+
         .invigilator-footer {
             margin-top: 2rem;
             padding-top: 1rem;
@@ -309,18 +419,18 @@
 </head>
 <body class="bg-gray-100 font-sans">
     
-    <!-- *** Main Navigation Bar (V29 Style Update) *** -->
+    <!-- *** Main Navigation Bar (V56 Update: Absentees) *** -->
     <nav id="main-nav" class="bg-gray-800 text-white p-4 sticky top-0 z-50">
         <div class="container max-w-2xl mx-auto flex justify-between items-center">
-            <!-- New Title Here -->
-            <!-- V49: Title Update -->
-            <h1 class="text-lg font-bold text-white bg-red-600 px-3 py-1 rounded-md shadow-md">UOC Exam Management (V49)</h1>
+            <!-- V57: Title Update -->
+            <h1 class="text-lg font-bold text-white bg-red-600 px-3 py-1 rounded-md shadow-md">UOC Exam Management (V57)</h1>
             
             <!-- Navigation buttons on the right -->
             <div class="flex gap-4">
                 <button id="nav-extractor" class="nav-button nav-button-active">Main Extractor</button>
                 <button id="nav-settings" class="nav-button nav-button-inactive">Room Settings</button>
                 <button id="nav-reports" class="nav-button nav-button-inactive">Reports</button>
+                <button id="nav-absentees" class="nav-button nav-button-inactive">Absentees</button>
             </div>
         </div>
     </nav>
@@ -341,6 +451,7 @@
                     <li>Click 'Run Batch Extraction'. Check the **Status Log** for errors.</li>
                     <li>Click 'Download Combined_Nominal_Roll.csv' for raw data.</li>
                     <li>Go to **Reports** to generate seating lists, day-wise lists, and question paper counts.</li>
+                    <li>Go to **Absentees** to mark absentees and generate the final statement.</li>
                 </ol>
             </div>
             <!-- END HOW TO USE SECTION -->
@@ -384,18 +495,16 @@
         </div>
     </div>
     
-    <!-- *** "Room Settings" View (V48 - COLLEGE NAME FIELD ADDED) *** -->
+    <!-- *** "Room Settings" View (V48 - COLLEGE NAME ADDED) *** -->
     <div id="view-settings" class="container max-w-2xl mx-auto p-4 min-h-screen hidden">
         <div class="bg-white p-8 rounded-lg shadow-xl w-full">
             <h1 class="text-3xl font-bold text-gray-800 mb-6">Room Capacity Settings</h1>
             
-            <!-- V48: College Name Setting -->
+            <!-- V48: College Name Input -->
             <div class="mb-6">
-                <label for="college-name" class="block text-sm font-medium text-gray-700">College Name for Reports:</label>
-                <input type="text" id="college-name" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., University of Calicut">
+                <label for="college-name-input" class="block text-sm font-medium text-gray-700 mb-1">College Name (for Reports)</label>
+                <input type="text" id="college-name-input" class="block w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm" placeholder="e.g., University of Calicut">
             </div>
-            
-            <hr class="mb-6">
             
             <p class="text-gray-600 mb-4">
                 Define the number of students per room. This list is automatically saved to your browser.
@@ -467,7 +576,7 @@
                     Generate Room-wise Seating Report
                 </button>
                 
-                <!-- (V49) New Title -->
+                <!-- (V49) Renamed Button -->
                 <button id="generate-daywise-report-button" class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-blue-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50" disabled>
                     Generate Seating Details for Candidates (Compact)
                 </button>
@@ -475,11 +584,61 @@
                 <button id="generate-qpaper-report-button" class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-blue-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50" disabled>
                     Generate Question Paper Report
                 </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- *** (V56) "Absentees" View *** -->
+    <div id="view-absentees" class="container max-w-2xl mx-auto p-4 min-h-screen hidden">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">Mark Absentees</h1>
+            
+            <div id="absentee-content-wrapper" class="hidden">
+                <!-- Session Selector -->
+                <div class="mb-4">
+                    <label for="session-select" class="block text-sm font-medium text-gray-700 mb-1">Select Exam Session:</label>
+                    <select id="session-select" class="block w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm">
+                        <option value="">-- Select a Session --</option>
+                    </select>
+                </div>
+
+                <!-- Autocomplete Search -->
+                <div id="absentee-search-section" class="mb-6 hidden">
+                    <label for="absentee-search" class="block text-sm font-medium text-gray-700 mb-1">Search Register Number:</label>
+                    <div class="autocomplete-container">
+                        <input type="text" id="absentee-search" class="block w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm" placeholder="Type 3 chars...">
+                        <div id="autocomplete-results" class="autocomplete-results hidden"></div>
+                    </div>
+                    
+                    <!-- Selected Student Details -->
+                    <div id="selected-student-details" class="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-md hidden">
+                        <div class="font-medium text-gray-800" id="selected-student-name"></div>
+                        <div class="text-sm text-gray-600" id="selected-student-course"></div>
+                        <div class="text-sm text-gray-600" id="selected-student-room"></div>
+                        <button id="add-absentee-button" class="mt-2 w-full inline-flex justify-center items-center rounded-md border border-transparent bg-red-600 py-2 px-3 text-sm font-medium text-white shadow-sm hover:bg-red-700">
+                            Add to Absentee List
+                        </button>
+                    </div>
+                </div>
                 
-                <button id="generate-absentee-report" class="w-full inline-flex justify-center items-center rounded-md border border-transparent bg-gray-400 py-3 px-4 text-sm font-medium text-white shadow-sm" disabled>
-                    Generate Absentee Report (Coming Soon)
+                <!-- Current Absentee List -->
+                <div id="absentee-list-section" class="hidden">
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Current Absentee List for this Session:</h3>
+                    <div id="current-absentee-list" class="min-h-[50px] bg-gray-50 border border-gray-200 rounded-md p-3 space-y-2">
+                        <!-- Absentees will be added here -->
+                    </div>
+                </div>
+                
+                <!-- Generate Report Button -->
+                <button id="generate-absentee-report-button" class="mt-6 w-full inline-flex justify-center items-center rounded-md border border-transparent bg-blue-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50" disabled>
+                    Generate Absentee Statement
                 </button>
             </div>
+            
+            <div id="absentee-loader" class="text-center text-gray-600">
+                <p>Please run a data extraction or load a corrected CSV on the "Reports" tab to enable this feature.</p>
+            </div>
+
         </div>
     </div>
 
@@ -515,13 +674,14 @@
         packages = ["pandas", "pdfplumber==0.9.0"]
     </py-config>
     
-    <!-- *** Python Script (V47 - ROBUST DETECTION) *** -->
+    <!-- *** Python Script (V57 - RELIABLE PARSING) *** -->
     <py-script>
         import pandas as pd
         import pdfplumber
         import re
         import io
-        from js import document, console, URL, Blob, window, localStorage 
+        import js # V55: FIX - Import the main js module
+        from js import document, console, URL, Blob, window, localStorage # V55: FIX - Import specific parts
         import asyncio
         import json 
         import math 
@@ -546,7 +706,12 @@
         spinner = document.getElementById("spinner")
         button_text = document.getElementById("button-text")
         
+        # V56: Absentee view elements
+        absentee_loader = document.getElementById("absentee-loader")
+        absentee_content_wrapper = document.getElementById("absentee-content-wrapper")
+        
         ROOM_CONFIG_KEY = 'examRoomConfig'
+        COLLEGE_NAME_KEY = 'examCollegeName' # V48: New key
 
         def log_message(message):
             """Helper function to print messages to the HTML (Processing) log."""
@@ -586,7 +751,12 @@
             try:
                 # V38: Standardized on DD.MM.YYYY
                 date_obj = datetime.strptime(row['Date'], '%d.%m.%Y')
-                time_obj = datetime.strptime(row['Time'], '%I:%M %p')
+                # V44: Handle inconsistent time formatting
+                time_str = row['Time'].replace(" ", "")
+                if len(time_str) == 7: # "9:30 AM" -> "09:30 AM"
+                    time_str = "0" + time_str
+                
+                time_obj = datetime.strptime(time_str, '%I:%M%p')
                 return (date_obj, time_obj)
             except ValueError as e:
                 console.log(f"Sort Error: Could not parse Date '{row['Date']}' or Time '{row['Time']}'. Error: {e}")
@@ -597,16 +767,15 @@
             """Extracts header from Page 1 of the new format."""
             date_val, time_val, course_name = "Unknown", "Unknown", "Unknown"
             try:
-                # V45: Use [\s\n]* to be whitespace-insensitive
-                dt_match = re.search(r'Exam Date:[\s\n]*(\d{2}-\d{2}-\d{4})\s*(\d{2}:\d{2}\s*[AP]M)', page_text)
+                # V45: Make regexes handle newlines
+                dt_match = re.search(r'Exam Date:\s*(\d{2}-\d{2}-\d{4})\s*(\d{2}:\d{2}\s*[AP]M)', page_text, re.DOTALL)
                 if dt_match:
                     date_val = dt_match.group(1).replace('-', '.')
                     time_val = dt_match.group(2)
                 
-                # V45: Use [\s\n]* to be whitespace-insensitive
-                course_match = re.search(r'Paper Details:[\s\n]*(.*?)/', page_text)
+                course_match = re.search(r'Paper Details:\s*(.*?)/', page_text, re.DOTALL)
                 if course_match:
-                    course_name = course_match.group(1).strip()
+                    course_name = course_match.group(1).strip().replace('\n', ' ')
             except Exception:
                 pass # Errors will be logged by the caller if fields are "Unknown"
             return date_val, time_val, course_name
@@ -614,17 +783,16 @@
         def extract_new_format_students(page_text, file_name, page_num):
             """Extracts only students from any page of the new format."""
             page_rows = []
-            # V45: This regex is the critical fix. It looks for:
-            # " (SlNo) ", " (RegNo) ", " (Name) ", " (DOB) "
-            # This handles newlines inside the name field correctly.
+            # V57: FIX - This regex is more robust. It only looks for the first 3 fields
+            # and doesn't care about the trailing commas, which are missing on page 2+.
             student_regex = re.compile(
-                r'"(\d+)\s*","([A-Z0-9]+)\s*","(.*?)"\s*,"(.*?)"', 
+                r'"\d+\s*","([A-Z0-9]+)\s*","(.*?)\s*","', # Match Sl.No, Reg.No, and Name
                 re.DOTALL
             )
             for match in student_regex.finditer(page_text):
                 try:
-                    reg_no = match.group(2).strip()
-                    name = match.group(3).strip().replace('\n', ' ')
+                    reg_no = match.group(1).strip()
+                    name = match.group(2).strip().replace('\n', ' ')
                     page_rows.append({'Register Number': reg_no, 'Name': name})
                 except Exception as e:
                     log_status(f"Skipping row. Details: {e}", is_error=True, file_name=file_name, page=page_num)
@@ -693,7 +861,7 @@
                     
                     # V44: Standardize time format (e.g., 9:30 AM -> 09:30 AM)
                     time_parts = time_val.split(':')
-                    if len(time_parts[0]) == 1:
+                    if len(time_parts) > 0 and len(time_parts[0]) == 1:
                         time_val = "0" + time_val
 
             except Exception:
@@ -745,7 +913,7 @@
             This function is the entry point from the "Run" button.
             It calls the main extraction function.
             """
-            import js # V37: Import js here
+            # V55: No need to import js, it's global
             try:
                 show_loader(True)
                 await asyncio.sleep(0) # Let loader show
@@ -772,7 +940,8 @@
                 csv_download_container.innerHTML = ""
                 generate_report_button.disabled = True
                 generate_qpaper_report_button.disabled = True
-                generate_daywise_report_button.disabled = True 
+                generate_daywise_report_button.disabled = True
+                js.disable_absentee_tab(True) # V56: Disable absentee tab
                 json_data_store.innerHTML = ""
                 q_paper_data_store.innerHTML = ""
                 status_div.innerHTML = ""
@@ -821,10 +990,11 @@
                             file_course = "Unknown"
                             is_new_format = False
 
-                            # V47: New detection logic.
-                            # Check for the unique header combination of the new format.
-                            if "SI.No" in page1_text and "D.O.B" in page1_text and "Remarks" in page1_text:
-                                # This is the NEW format
+                            # V57: FIX - Robust check for "New Format"
+                            # Check for the unique, quoted, CSV-style header.
+                            page1_text_flat = page1_text.replace("\n", "")
+                            if '"SI.No","Reg.No","Name"' in page1_text_flat or '"SI.No" ,"Reg.No" ,"Name"' in page1_text_flat:
+                                # This is DEFINITELY the NEW format
                                 is_new_format = True
                                 file_date, file_time, file_course = extract_new_format_header(page1_text)
                                 log_message("Detected 'New' PDF format.")
@@ -833,6 +1003,7 @@
                                 is_new_format = False
                                 file_date, file_time, file_course = extract_old_format_header(page1_text)
                                 log_message("Detected 'Old' PDF format.")
+
 
                             # Log warnings if header info is still unknown
                             if file_date == "Unknown":
@@ -852,11 +1023,9 @@
                                 
                                 page_students = []
                                 if is_new_format:
-                                    # V45: Pass page_text for regex
                                     page_text = page.extract_text(y_tolerance=3, x_tolerance=3)
                                     page_students = extract_new_format_students(page_text, file_name, page_num)
                                 else:
-                                    # V45: Pass page object for table extraction
                                     page_students = extract_old_format_students(page, file_name, page_num)
                                 
                                 if page_students:
@@ -874,7 +1043,7 @@
                                     log_status(f"No students found on page.", is_error=False, file_name=file_name, page=page_num)
                             
                             log_message(f"Found {total_students_in_file} students in this file.")
-                            # --- END V4S40 STATEFUL LOGIC ---
+                            # --- END V40 STATEFUL LOGIC ---
 
                     except Exception as e:
                         error_msg = f"CRITICAL ERROR processing file. Skipping this file. Details: {e}"
@@ -930,6 +1099,8 @@
                 generate_report_button.disabled = False
                 generate_qpaper_report_button.disabled = False
                 generate_daywise_report_button.disabled = False
+                js.disable_absentee_tab(False) # V56: Enable absentee tab
+                js.populate_session_dropdown() # V56: Populate dropdown
                                 
                 log_message("Success! Your combined files are ready.")
             
@@ -948,20 +1119,27 @@
             
     </py-script>
 
-    <!-- *** JAVASCRIPT FOR ALL UI (V48) *** -->
+    <!-- *** JAVASCRIPT FOR ALL UI (V57) *** -->
     <script>
-        // --- Global localStorage Keys (V48) ---
-        const ROOM_CONFIG_KEY = 'examRoomConfig_v48';
-        const COLLEGE_NAME_KEY = 'examCollegeName_v48'; // V48: New key
-        
+        // --- Global localStorage Key ---
+        const ROOM_CONFIG_KEY = 'examRoomConfig';
+        const COLLEGE_NAME_KEY = 'examCollegeName'; // V48: New key
+        const ABSENTEE_LIST_KEY = 'examAbsenteeList'; // V56: New key
+
         // --- Global var to hold data from the last *report run* ---
         let lastGeneratedRoomData = [];
         
         // --- (V28) Global var to hold room config map for report generation ---
         let currentRoomConfig = {};
         
-        // --- (V48) Global var to hold college name ---
-        let currentCollegeName = "University of Calicut";
+        // --- (V48) Global var for college name ---
+        let currentCollegeName = "University of Calicut"; // Default
+        
+        // --- (V56) Global var for absentee data ---
+        let allStudentData = []; // Holds all students from PDF/CSV
+        let allStudentSessions = []; // Holds unique sessions
+        let currentAbsenteeList = []; // Holds absentees for the selected session
+        let selectedStudent = null; // Holds student from autocomplete
 
         // --- Get references to all Report elements ---
         const generateReportButton = document.getElementById('generate-report-button');
@@ -977,18 +1155,20 @@
         const viewExtractor = document.getElementById('view-extractor');
         const viewSettings = document.getElementById('view-settings');
         const viewReports = document.getElementById('view-reports');
+        const viewAbsentees = document.getElementById('view-absentees'); // V56
         const navExtractor = document.getElementById('nav-extractor');
         const navSettings = document.getElementById('nav-settings');
         const navReports = document.getElementById('nav-reports');
-        const allNavButtons = [navExtractor, navSettings, navReports];
-        const allViews = [viewExtractor, viewSettings, viewReports];
+        const navAbsentees = document.getElementById('nav-absentees'); // V56
+        const allNavButtons = [navExtractor, navSettings, navReports, navAbsentees]; // V56
+        const allViews = [viewExtractor, viewSettings, viewReports, viewAbsentees]; // V56
         
         // --- (V26) Get references to NEW Room Settings elements ---
+        const collegeNameInput = document.getElementById('college-name-input'); // V48
         const roomConfigContainer = document.getElementById('room-config-container');
         const addRoomButton = document.getElementById('add-room-button');
         const saveRoomConfigButton = document.getElementById('save-room-config-button');
         const roomConfigStatus = document.getElementById('room-config-status');
-        const collegeNameInput = document.getElementById('college-name'); // V48
         
         // --- Get references to Q-Paper Report elements ---
         const qPaperDataStore = document.getElementById('q-paper-data-store');
@@ -1002,6 +1182,22 @@
         const loadCsvButton = document.getElementById('load-csv-button');
         const csvLoadStatus = document.getElementById('csv-load-status');
         
+        // --- (V56) Get references to Absentee elements ---
+        const absenteeLoader = document.getElementById('absentee-loader');
+        const absenteeContentWrapper = document.getElementById('absentee-content-wrapper');
+        const sessionSelect = document.getElementById('session-select');
+        const absenteeSearchSection = document.getElementById('absentee-search-section');
+        const absenteeSearchInput = document.getElementById('absentee-search');
+        const autocompleteResults = document.getElementById('autocomplete-results');
+        const selectedStudentDetails = document.getElementById('selected-student-details');
+        const selectedStudentName = document.getElementById('selected-student-name');
+        const selectedStudentCourse = document.getElementById('selected-student-course');
+        const selectedStudentRoom = document.getElementById('selected-student-room');
+        const addAbsenteeButton = document.getElementById('add-absentee-button');
+        const absenteeListSection = document.getElementById('absentee-list-section');
+        const currentAbsenteeListDiv = document.getElementById('current-absentee-list');
+        const generateAbsenteeReportButton = document.getElementById('generate-absentee-report-button');
+
         
         // --- Helper function to numerically sort room keys ---
         function getNumericSortKey(key) {
@@ -1023,8 +1219,13 @@
             `;
         }
         
-        // --- (V28) Room Capacity Loading Function (uses new object structure) ---
+        // --- (V48) Updated Room Config Loading (handles College Name) ---
         function getRoomCapacitiesFromStorage() {
+            // V48: Load College Name
+            currentCollegeName = localStorage.getItem(COLLEGE_NAME_KEY) || "University of Calicut";
+            collegeNameInput.value = currentCollegeName; // Update UI
+            
+            // Load Room Config
             let savedConfigJson = localStorage.getItem(ROOM_CONFIG_KEY) || "{}"; 
             let roomConfig;
             try {
@@ -1190,9 +1391,8 @@
                         courseSummaryHtml += `<div style="font-weight: bold;">${courseName}: ${count} Student(s)</div>`; // V38: Show full course name
                     }
                     
-                    // V48: Use saved college name
                     const pageHeaderHtml = `
-                        <h1>${currentCollegeName}</h1> 
+                        <h1>${currentCollegeName}</h1> <!-- V48: Use college name -->
                         <h2>${session.Date} &nbsp;|&nbsp; ${session.Time} &nbsp;|&nbsp; ${session.Room}</h2>
                         ${locationHtml} <!-- (V28) Added location here -->
                         <div class="course-summary">
@@ -1297,6 +1497,7 @@
         // --- (V29) Event listener for the "Day-wise Student List" button ---
         generateDaywiseReportButton.addEventListener('click', async () => {
             generateDaywiseReportButton.disabled = true;
+            // V49: Button text updated
             generateDaywiseReportButton.textContent = "Generating...";
             reportOutputArea.innerHTML = "";
             reportControls.classList.add('hidden');
@@ -1372,7 +1573,6 @@
                 const STUDENTS_PER_PAGE = STUDENTS_PER_COLUMN * COLUMNS_PER_PAGE; // 240
 
                 // (V30) Helper to build a table for a column, NOW WITH COURSE GROUPING
-                // (V48) This function now tracks the previous room to print ditto marks
                 function buildColumnTable(studentChunk) {
                     let rowsHtml = '';
                     let currentCourse = ""; // Track the current course
@@ -1382,6 +1582,7 @@
                         // Check if the course has changed
                         if (student.Course !== currentCourse) {
                             currentCourse = student.Course;
+                            previousRoomDisplay = ""; // V48: Reset for new course
                             // Add a course heading row
                             rowsHtml += `
                                 <tr>
@@ -1390,26 +1591,22 @@
                                     </td>
                                 </tr>
                             `;
-                            previousRoomDisplay = ""; // V48: Reset for new course
                         }
 
                         // Add the student row
                         const roomInfo = currentRoomConfig[student.roomName];
                         const location = (roomInfo && roomInfo.location) ? roomInfo.location : "";
-                        let roomDisplay = location ? `${student.roomName} (${location})` : student.roomName;
-                        
-                        // V48: Check if same as previous row
-                        if (roomDisplay === previousRoomDisplay) {
-                            roomDisplay = '"';
-                        } else {
-                            previousRoomDisplay = roomDisplay;
-                        }
+                        const roomDisplay = location ? `${student.roomName} (${location})` : student.roomName;
+
+                        // V48: Check if same as above
+                        const displayRoom = (roomDisplay === previousRoomDisplay) ? '"' : roomDisplay;
+                        previousRoomDisplay = roomDisplay; // Update for next iteration
 
                         rowsHtml += `
                             <tr>
                                 <td>${student['Register Number']}</td>
                                 <td>${student.Name}</td>
-                                <td>${roomDisplay}</td>
+                                <td>${displayRoom}</td>
                                 <td style="text-align: center;">${student.slNoInRoom}</td>
                             </tr>
                         `;
@@ -1444,12 +1641,12 @@
                         const col1Students = pageStudents.slice(0, STUDENTS_PER_COLUMN);
                         const col2Students = pageStudents.slice(STUDENTS_PER_COLUMN); // (V31) Changed to get rest of students
 
-                        // V48: Use saved college name & (V49) New Title
                         allPagesHtml += `
                             <div class="print-page print-page-daywise">
-                                <h1>${currentCollegeName}</h1>
-                                <h2>Seating Details for Candidates</h2>
-                                <h3>${session.Date} &nbsp;|&nbsp; ${session.Time}</h3>
+                                <!-- V49: Title Updated -->
+                                <h1>Seating Details for Candidates</h1>
+                                <!-- V48: Use college name -->
+                                <h2>${currentCollegeName} &nbsp;|&nbsp; ${session.Date} &nbsp;|&nbsp; ${session.Time}</h2>
                                 <div class="column-container">
                                     <div class="column">
                                         ${buildColumnTable(col1Students)}
@@ -1475,9 +1672,117 @@
                 reportStatus.textContent = "An error occurred while generating the report.";
                 reportControls.classList.remove('hidden');
             } finally {
-                // V49: New Title
                 generateDaywiseReportButton.disabled = false;
+                // V49: Button text updated
                 generateDaywiseReportButton.textContent = "Generate Seating Details for Candidates (Compact)";
+            }
+        });
+        
+        // --- (V56) Event listener for "Generate Absentee Statement" ---
+        generateAbsenteeReportButton.addEventListener('click', async () => {
+            const sessionKey = sessionSelect.value;
+            if (!sessionKey) {
+                alert("Please select a session first.");
+                return;
+            }
+
+            generateAbsenteeReportButton.disabled = true;
+            generateAbsenteeReportButton.textContent = "Generating...";
+            await new Promise(resolve => setTimeout(resolve, 50));
+            
+            try {
+                // 1. Get all students for this session
+                const [date, time] = sessionKey.split(' | ');
+                const sessionStudents = allStudentData.filter(s => s.Date === date && s.Time === time);
+                
+                // 2. Get absentee register numbers for this session
+                const allAbsentees = JSON.parse(localStorage.getItem(ABSENTEE_LIST_KEY) || '{}');
+                const absenteeRegNos = new Set(allAbsentees[sessionKey] || []);
+                
+                // 3. Group students by Course
+                const courses = {};
+                for (const student of sessionStudents) {
+                    const course = student.Course;
+                    if (!courses[course]) {
+                        courses[course] = {
+                            present: [],
+                            absent: []
+                        };
+                    }
+                    
+                    if (absenteeRegNos.has(student['Register Number'])) {
+                        courses[course].absent.push(student['Register Number']);
+                    } else {
+                        courses[course].present.push(student['Register Number']);
+                    }
+                }
+                
+                // 4. Build Report Pages
+                let allPagesHtml = '';
+                let totalPages = 0;
+                const sortedCourses = Object.keys(courses).sort();
+                
+                for (const courseName of sortedCourses) {
+                    totalPages++;
+                    const courseData = courses[courseName];
+                    
+                    // V57: Add page break logic. Each course is a new page.
+                    allPagesHtml += `
+                        <div class="print-page">
+                            <!-- V57: Header repeated on each page -->
+                            <h1>${currentCollegeName}</h1>
+                            <h2>Absentee Statement</h2>
+                            <h3>${date} &nbsp;|&nbsp; ${time}</h3>
+                        
+                            <table class="absentee-report-table">
+                                <thead>
+                                    <tr>
+                                        <th colspan="2">Course: ${courseName}</th>
+                                    </tr>
+                                    <tr>
+                                        <th>Status</th>
+                                        <th>Register Numbers</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Present (${courseData.present.length})</strong></td>
+                                        <td class="regno-list">
+                                            ${courseData.present.length > 0 ? courseData.present.map(regNo => `<span>${regNo}</span>`).join('') : '<em>None</em>'}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Absent (${courseData.absent.length})</strong></td>
+                                        <td class="regno-list">
+                                            ${courseData.absent.length > 0 ? courseData.absent.map(regNo => `<span>${regNo}</span>`).join('') : '<em>None</em>'}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            
+                            <div class="absentee-footer">
+                                <div class="signature">
+                                    Chief Superintendent
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // 5. Show report and controls
+                reportOutputArea.innerHTML = allPagesHtml;
+                reportOutputArea.style.display = 'block'; 
+                reportStatus.textContent = `Generated ${totalPages} page(s) for ${sortedCourses.length} courses.`;
+                reportControls.classList.remove('hidden');
+                roomCsvDownloadContainer.innerHTML = ""; // This report has no CSV
+
+            } catch (e) {
+                console.error("Error generating absentee report:", e);
+                reportStatus.textContent = "An error occurred while generating the report.";
+                reportControls.classList.remove('hidden');
+            } finally {
+                generateAbsenteeReportButton.disabled = false;
+                generateAbsenteeReportButton.textContent = "Generate Absentee Statement";
             }
         });
 
@@ -1541,6 +1846,7 @@
         navExtractor.addEventListener('click', () => showView(viewExtractor, navExtractor));
         navSettings.addEventListener('click', () => showView(viewSettings, navSettings));
         navReports.addEventListener('click', () => showView(viewReports, navReports));
+        navAbsentees.addEventListener('click', () => showView(viewAbsentees, navAbsentees)); // V56
         
         function showView(viewToShow, buttonToActivate) {
             allViews.forEach(view => view.classList.add('hidden'));
@@ -1555,17 +1861,17 @@
             clearReport(); // Always clear reports when switching views
         }
 
-        // --- (V48) UPDATED ROOM SETTINGS LOGIC (with College Name) ---
+        // --- (V48) NEW ROOM SETTINGS LOGIC (with College Name) ---
         
-        // --- (V48) Save from dynamic form (includes College Name) ---
+        // --- (V48) Save from dynamic form (uses new object structure) ---
         saveRoomConfigButton.addEventListener('click', () => {
             try {
-                // 1. Save College Name
+                // V48: Save College Name
                 const collegeName = collegeNameInput.value.trim() || "University of Calicut";
                 localStorage.setItem(COLLEGE_NAME_KEY, collegeName);
                 currentCollegeName = collegeName; // Update global var
                 
-                // 2. Save Room Config
+                // Save Room Config
                 const newConfig = {};
                 const roomRows = roomConfigContainer.querySelectorAll('.room-row');
                 
@@ -1594,7 +1900,7 @@
                 roomConfigStatus.textContent = "Settings saved successfully!";
                 setTimeout(() => { roomConfigStatus.textContent = ""; }, 2000);
                 
-                // Reload the form to show normalized data
+                // Reload the form to show normalized data (e.g., show the '30' in blank fields)
                 loadRoomConfig();
                 
             } catch (e) {
@@ -1603,13 +1909,13 @@
             }
         });
 
-        // --- (V48) Load data into dynamic form (includes College Name) ---
+        // --- (V48) Load data into dynamic form (with College Name) ---
         function loadRoomConfig() {
-            // 1. Load College Name
+            // V48: Load College Name
             currentCollegeName = localStorage.getItem(COLLEGE_NAME_KEY) || "University of Calicut";
             collegeNameInput.value = currentCollegeName;
             
-            // 2. Load Room Config
+            // Load Room Config
             let savedConfigJson = localStorage.getItem(ROOM_CONFIG_KEY);
             let config;
             
@@ -1735,10 +2041,9 @@
                         `;
                     });
                     
-                    // V48: Use saved college name
                     const pageHtml = `
                         <div class="print-page">
-                            <h1>${currentCollegeName}</h1>
+                            <h1>${currentCollegeName}</h1> <!-- V48: Use college name -->
                             <h2>Question Paper Summary</h2>
                             <h3>${session.Date} &nbsp;|&nbsp; ${session.Time}</h3>
                             
@@ -1824,7 +2129,7 @@
                 if (regNumIndex === -1 || nameIndex === -1 || courseIndex === -1) {
                     csvLoadStatus.textContent = "Error: CSV must contain 'Register Number', 'Name', and 'Course' headers.";
                     csvLoadStatus.classList.add('text-red-600');
-                    csvLoadStatus.classList.remove('text-green-600'); // V45: Fix typo
+                    csvLoadStatus.classList.remove('text-green-600');
                     return;
                 }
 
@@ -1852,7 +2157,7 @@
                     };
                     
                     jsonData.push(student);
-
+                    
                     // --- Regenerate Q-Paper Summary ---
                     const key = `${student.Date}_${student.Time}_${student.Course}`;
                     if (!qPaperSummary[key]) {
@@ -1881,6 +2186,10 @@
                 generateReportButton.disabled = false;
                 generateQPaperReportButton.disabled = false;
                 generateDaywiseReportButton.disabled = false;
+                
+                // V56: Enable and populate absentee tab
+                disable_absentee_tab(false);
+                populate_session_dropdown();
 
             } catch (e) {
                 console.error("Error parsing CSV:", e);
@@ -1890,8 +2199,188 @@
             }
         }
         
+        
+        // --- (V56) NEW ABSENTEE LOGIC ---
+        
+        function disable_absentee_tab(disabled) {
+            navAbsentees.disabled = disabled;
+            if (disabled) {
+                absenteeLoader.classList.remove('hidden');
+                absenteeContentWrapper.classList.add('hidden');
+                navAbsentees.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                absenteeLoader.classList.add('hidden');
+                absenteeContentWrapper.classList.remove('hidden');
+                navAbsentees.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+        
+        function populate_session_dropdown() {
+            try {
+                allStudentData = JSON.parse(jsonDataStore.innerHTML || '[]');
+                if (allStudentData.length === 0) {
+                    disable_absentee_tab(true);
+                    return;
+                }
+                
+                // Get unique sessions
+                const sessions = new Set(allStudentData.map(s => `${s.Date} | ${s.Time}`));
+                allStudentSessions = Array.from(sessions).sort();
+                
+                sessionSelect.innerHTML = '<option value="">-- Select a Session --</option>'; // Clear
+                
+                // Find today's session
+                const today = new Date();
+                const todayStr = today.toLocaleDateString('en-GB').replace(/\//g, '.'); // DD.MM.YYYY
+                let defaultSession = "";
+                
+                allStudentSessions.forEach(session => {
+                    sessionSelect.innerHTML += `<option value="${session}">${session}</option>`;
+                    if (session.startsWith(todayStr)) {
+                        defaultSession = session;
+                    }
+                });
+                
+                if (defaultSession) {
+                    sessionSelect.value = defaultSession;
+                    sessionSelect.dispatchEvent(new Event('change')); // Trigger change to load list
+                }
+
+            } catch (e) {
+                console.error("Failed to populate sessions:", e);
+                disable_absentee_tab(true);
+            }
+        }
+        
+        sessionSelect.addEventListener('change', () => {
+            const sessionKey = sessionSelect.value;
+            if (sessionKey) {
+                absenteeSearchSection.classList.remove('hidden');
+                absenteeListSection.classList.remove('hidden');
+                generateAbsenteeReportButton.disabled = false;
+                loadAbsenteeList(sessionKey);
+            } else {
+                absenteeSearchSection.classList.add('hidden');
+                absenteeListSection.classList.add('hidden');
+                generateAbsenteeReportButton.disabled = true;
+                currentAbsenteeListDiv.innerHTML = "";
+            }
+            clearSearch();
+        });
+        
+        absenteeSearchInput.addEventListener('input', () => {
+            const query = absenteeSearchInput.value.trim().toUpperCase();
+            if (query.length < 3) {
+                autocompleteResults.classList.add('hidden');
+                return;
+            }
+            
+            const sessionKey = sessionSelect.value;
+            if (!sessionKey) return;
+            const [date, time] = sessionKey.split(' | ');
+            
+            // Filter students for this session
+            const sessionStudents = allStudentData.filter(s => s.Date === date && s.Time === time);
+            
+            // Filter by search query
+            const matches = sessionStudents.filter(s => s['Register Number'].toUpperCase().includes(query)).slice(0, 10);
+            
+            if (matches.length > 0) {
+                autocompleteResults.innerHTML = '';
+                matches.forEach(student => {
+                    const item = document.createElement('div');
+                    item.className = 'autocomplete-item';
+                    item.innerHTML = student['Register Number'].replace(new RegExp(query, 'gi'), '<strong>$&</strong>') + ` (${student.Name})`;
+                    item.onclick = () => selectStudent(student);
+                    autocompleteResults.appendChild(item);
+                });
+                autocompleteResults.classList.remove('hidden');
+            } else {
+                autocompleteResults.classList.add('hidden');
+            }
+        });
+        
+        function selectStudent(student) {
+            selectedStudent = student;
+            absenteeSearchInput.value = student['Register Number'];
+            autocompleteResults.classList.add('hidden');
+            
+            // Perform allocation to find room
+            const allocatedData = performRoomAllocation([student]);
+            const allocatedStudent = allocatedData[0];
+            const roomInfo = currentRoomConfig[allocatedStudent['Room No']];
+            const location = (roomInfo && roomInfo.location) ? `(${roomInfo.location})` : "";
+            
+            selectedStudentName.textContent = student.Name;
+            selectedStudentCourse.textContent = student.Course;
+            selectedStudentRoom.textContent = `Room: ${allocatedStudent['Room No']} ${location}`;
+            selectedStudentDetails.classList.remove('hidden');
+        }
+        
+        function clearSearch() {
+            selectedStudent = null;
+            absenteeSearchInput.value = "";
+            autocompleteResults.classList.add('hidden');
+            selectedStudentDetails.classList.add('hidden');
+        }
+        
+        addAbsenteeButton.addEventListener('click', () => {
+            if (!selectedStudent) return;
+            
+            const sessionKey = sessionSelect.value;
+            const regNo = selectedStudent['Register Number'];
+            
+            if (currentAbsenteeList.includes(regNo)) {
+                alert(`${regNo} is already on the absentee list.`);
+                clearSearch();
+                return;
+            }
+            
+            // Add to list and save
+            currentAbsenteeList.push(regNo);
+            saveAbsenteeList(sessionKey);
+            renderAbsenteeList();
+            clearSearch();
+        });
+        
+        function loadAbsenteeList(sessionKey) {
+            const allAbsentees = JSON.parse(localStorage.getItem(ABSENTEE_LIST_KEY) || '{}');
+            currentAbsenteeList = allAbsentees[sessionKey] || [];
+            renderAbsenteeList();
+        }
+        
+        function saveAbsenteeList(sessionKey) {
+            const allAbsentees = JSON.parse(localStorage.getItem(ABSENTEE_LIST_KEY) || '{}');
+            allAbsentees[sessionKey] = currentAbsenteeList;
+            localStorage.setItem(ABSENTEE_LIST_KEY, JSON.stringify(allAbsentees));
+        }
+        
+        function renderAbsenteeList() {
+            currentAbsenteeListDiv.innerHTML = "";
+            if (currentAbsenteeList.length === 0) {
+                currentAbsenteeListDiv.innerHTML = `<em class="text-gray-500">No absentees marked for this session.</em>`;
+                return;
+            }
+            
+            currentAbsenteeList.forEach(regNo => {
+                const item = document.createElement('div');
+                item.className = 'flex justify-between items-center p-2 bg-white border border-gray-200 rounded';
+                item.innerHTML = `<span class="font-medium">${regNo}</span>
+                                  <button class="text-xs text-red-600 hover:text-red-800 font-medium">&times; Remove</button>`;
+                item.querySelector('button').onclick = () => removeAbsentee(regNo);
+                currentAbsenteeListDiv.appendChild(item);
+            });
+        }
+        
+        function removeAbsentee(regNo) {
+            currentAbsenteeList = currentAbsenteeList.filter(r => r !== regNo);
+            saveAbsenteeList(sessionSelect.value);
+            renderAbsenteeList();
+        }
+        
         // --- Run on initial page load ---
         loadRoomConfig();
+        disable_absentee_tab(true); // V56: Disable tab by default
 
     </script>
 
