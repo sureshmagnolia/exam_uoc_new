@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nominal Roll Extractor (V13)</title>
+    <!-- Updated Title -->
+    <title>UOC Exam Management V13</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -247,7 +248,8 @@
         <div class="bg-white p-8 rounded-lg shadow-xl w-full">
             
             <header class="mb-6">
-                <h1 class="text-3xl font-bold text-gray-800">Nominal Roll Extractor (V13)</h1>
+                <!-- Updated Title -->
+                <h1 class="text-3xl font-bold text-gray-800">UOC Exam Management (V13)</h1>
                 <p class="text-gray-600 mt-2">
                     Upload multiple Nominal Roll PDFs at once, assign to rooms based on
                     <span class="font-medium text-indigo-600">custom capacities</span>, and print reports.
@@ -1012,7 +1014,7 @@
                     // Escape quotes by doubling them
                     val = val.replace(/"/g, '""');
                     // If value contains a comma, wrap it in quotes
-                    if (val.includes(',') || val.includes('"')) {
+                    if (val.includes(',') || val.S('")')) {
                         val = `"${val}"`;
                     }
                     return val;
