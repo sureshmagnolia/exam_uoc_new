@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Title -->
-    <title>UOC Exam Management V31</title>
+    <title>UOC Exam Management V32</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -163,7 +163,8 @@
             .daywise-report-table {
                 width: 100%;
                 border-collapse: collapse;
-                font-size: 7pt; /* Small font */
+                /* V32: Font size decreased */
+                font-size: 6pt; 
             }
             .daywise-report-table th,
             .daywise-report-table td {
@@ -267,7 +268,8 @@
         .daywise-report-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 7pt; /* Small font */
+            /* V32: Font size decreased */
+            font-size: 6pt; 
             table-layout: fixed; /* Helps with column widths */
         }
         .daywise-report-table th,
@@ -311,7 +313,8 @@
     <nav id="main-nav" class="bg-gray-800 text-white p-4 sticky top-0 z-50">
         <div class="container max-w-2xl mx-auto flex justify-between items-center">
             <!-- New Title Here -->
-            <h1 class="text-lg font-bold text-white bg-red-600 px-3 py-1 rounded-md shadow-md">UOC Exam Management (V31)</h1>
+            <!-- V32: Title Update -->
+            <h1 class="text-lg font-bold text-white bg-red-600 px-3 py-1 rounded-md shadow-md">UOC Exam Management (V32)</h1>
             
             <!-- Navigation buttons on the right -->
             <div class="flex gap-4">
@@ -783,7 +786,7 @@
             
     </py-script>
 
-    <!-- *** JAVASCRIPT FOR ALL UI (V30) *** -->
+    <!-- *** JAVASCRIPT FOR ALL UI (V32) *** -->
     <script>
         // --- Global localStorage Key ---
         const ROOM_CONFIG_KEY = 'examRoomConfig';
@@ -1230,14 +1233,15 @@
                     });
 
                     // (V30) Updated table header to remove Course
+                    // (V32) Updated widths
                     return `
                         <table class="daywise-report-table">
                             <thead>
                                 <tr>
                                     <th style="width: 25%;">Register No</th>
                                     <th style="width: 35%;">Name</th>
-                                    <th style="width: 35%;">Room (Location)</th>
-                                    <th style="width: 5%;">Sl</th>
+                                    <th style="width: 30%;">Room (Location)</th>
+                                    <th style="width: 10%;">Sl</th>
                                 </tr>
                             </thead>
                             <tbody>${rowsHtml}</tbody>
@@ -1585,6 +1589,4 @@
 
 </body>
 </html>
-
-
 
