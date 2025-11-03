@@ -1,10 +1,11 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Title -->
-    <title>UOC Exam Management V90 (Fixes)</title>
+    <title>UOC Exam Management V9.1</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn-tailwindcss.vercel.app/"></script>
@@ -1468,17 +1469,37 @@
         const reportsSessionSelect = document.getElementById('reports-session-select');
 
 
-        // --- V81 FIX: Aggressive Key Cleaning Function (Fixes 1st/Last course) ---
+        // --// V90 FIX: Aggressive Key Cleaning Function (Fixes key collision) ---
         function cleanCourseKey(courseName) {
             if (typeof courseName !== 'string') return '';
-            // Remove all non-standard chars (including BOM, non-breaking spaces, and control chars)
-            let cleaned = courseName.replace(/[\ufeff\u00A0\u200B\u200C\u200D\u200E\u200F\uFEFF]/g, ' ').toUpperCase(); 
-            // Remove ALL non-alphanumeric chars (except spaces, - ( ) [ ] / & , ; .)
-            cleaned = cleaned.replace(/[^\w\s\-\(\)\[\]\/&,;.]/g, ''); 
-            // Replace multiple spaces with one, then trim
-            return cleaned.replace(/\s+/g, ' ').trim();
-        }
-        
+            // V90 FIX: Keep only alphanumeric characters and the course code part
+            // The course code is the most unique part (e.g., BOT3CJ201)
+            let cleaned = courseName.toUpperCase();
+            
+            // 1. Extract the course code (e.g., BOT3CJ201) and the syllabus year (e.g., 2024)
+            const codeMatch = cleaned.match(/([A-Z]{3}\d[A-Z]{2}\d{3})/);
+            const syllabusMatch = cleaned.match(/(\d{4})\s+SYLLABUS/);
+            
+            let key = '';
+            if (codeMatch) {
+                key += codeMatch[1];
+            }
+            if (syllabusMatch) {
+                key += syllabusMatch[1];
+            }
+            
+            // Fallback: If no code is found, use the old aggressive cleaning method
+            if (!key) {
+                // Remove all non-standard chars (including BOM, non-breaking spaces, and control chars)
+                cleaned = cleaned.replace(/[\ufeff\u00A0\u200B\u200C\u200D\u200E\u200F\uFEFF]/g, ' ').toUpperCase(); 
+                // Remove ALL non-alphanumeric chars (except spaces, - ( ) [ ] / & , ; .)
+                cleaned = cleaned.replace(/[^\w\s\-\(\)\[\]\/&,;.]/g, ''); 
+                // Replace multiple spaces with one, then trim
+                key = cleaned.replace(/\s+/g, ' ').trim();
+            }
+            
+            return key;
+        }        
         
         // --- Helper function to numerically sort room keys ---
         function getNumericSortKey(key) {
@@ -2943,6 +2964,11 @@
                 return;
             }
             
+            // V90 FIX: Ensure qpCodeMap is initialized before loading from storage
+            if (typeof qpCodeMap === 'undefined') {
+                qpCodeMap = {};
+            }
+
             // 1. Load the entire master map from storage
             // This ensures we don't overwrite other sessions
             loadQPCodes(); 
