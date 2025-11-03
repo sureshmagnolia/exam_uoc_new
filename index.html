@@ -1,11 +1,10 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Updated Title -->
-    <title>UOC Exam Management V9.1</title>
+    <title>UOC Exam Management V9.9</title>
     
     <!-- Load Tailwind CSS for styling -->
     <script src="https://cdn-tailwindcss.vercel.app/"></script>
@@ -13,6 +12,8 @@
     <!-- Load PyScript -->
     <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
     <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+    
+    <!-- V96: REMOVED HTML2PDF.JS (Relying on browser native print for reliable PDF output) -->
 
     <!-- Custom Styles for Printing, Spinner, and Navigation -->
     <style>
@@ -108,6 +109,18 @@
 
         /* --- PRINT STYLES --- */
         @media print {
+            /* V98 FIX: Adjust page padding to maximize content area and minimize blank margins */
+            @page {
+                margin: 0.5cm; /* Minimal margin */
+            }
+            
+            /* V100 FIX: Ensure body and app background is white/transparent to remove shadows */
+            body, #report-output-area {
+                background-color: white !important;
+                background: white !important;
+                color: black !important;
+            }
+
             /* Hide the main app container and all other non-report elements */
             #main-nav, #view-extractor, #view-settings, #view-reports, #view-absentees, #view-qpcodes, #view-room-settings, body > py-config, body > py-script, #report-controls {
                 display: none !important; /* Be forceful */
@@ -120,20 +133,31 @@
                 position: static; /* Use static positioning for print flow */
                 width: 100%;
                 overflow-y: visible;
+                /* V101 FIX: Reset margin and padding to prevent interference with page breaks */
+                margin: 0 !important;
+                padding: 0 !important;
             }
 
             /* Make sure each page is visible and breaks correctly */
             .print-page {
                 display: block !important;
                 visibility: visible !important;
+                /* V93 FIX: Enforce page break on all report pages */
                 page-break-after: always;
                 page-break-inside: avoid;
                 width: 100%;
-                padding: 1cm;
+                /* V98 FIX: Use padding=margin to match @page setting */
+                padding: 0.5cm; 
                 box-sizing: border-box;
                 box-shadow: none;
                 border: none;
-                margin: 0;
+                /* V101 FIX: Add !important to guarantee margin reset */
+                margin: 0 !important;
+            }
+
+            /* V93 FIX: Final page should not have a page break */
+            .print-page:last-child {
+                page-break-after: auto;
             }
             
             /* The rest of the styles are for formatting the page */
@@ -145,11 +169,20 @@
             h2 { font-size: 14pt; font-weight: bold; margin-bottom: 1rem; }
             h3 { font-size: 12pt; font-weight: bold; margin-bottom: 1rem; }
 
+            /* V98: Hide course summary from the body content as it is moved to footer */
             .course-summary {
-                font-size: 11pt;
+                display: none;
+            }
+
+            /* V98: New style for summary inside the footer */
+            .invigilator-footer .course-summary-footer {
+                display: block;
+                font-size: 10pt;
                 margin-bottom: 1rem;
                 padding: 0.5rem;
+                /* V99 FIX: Add border for the box */
                 border: 1px solid #ccc;
+                text-align: left;
             }
             
             /* (V28) Style for new location header */
@@ -168,6 +201,7 @@
                 padding-top: 1rem;
                 border-top: 1px solid #ccc;
                 font-size: 10pt;
+                page-break-before: avoid; /* Keep with content above */
             }
             .invigilator-footer div {
                 margin-bottom: 0.5rem;
@@ -229,18 +263,21 @@
             .print-page-daywise h1 { font-size: 14pt; }
             .print-page-daywise h2 { font-size: 12pt; margin-bottom: 0.5rem; }
             .print-page-daywise .column-container {
-                display: flex;
-                gap: 10px;
+                /* V92 FIX: Ensure print media treats this as a single column for PDF export if needed */
+                display: block; 
+                gap: 0;
             }
             .print-page-daywise .column {
-                flex: 1;
-                min-width: 0; /* Prevents flex overflow */
+                flex: none;
+                min-width: 100%; /* Prevents flex overflow */
             }
             .daywise-report-table {
                 width: 100%;
                 border-collapse: collapse;
-                /* V32: Font size decreased */
-                font-size: 6pt; 
+                /* V100 FIX: Increased font size for better readability/fit */
+                font-size: 7pt; 
+                /* V100 FIX: Removed fixed layout in print media to allow natural column width adjustment */
+                table-layout: auto; 
                 /* V90 FIX: Add break-before: avoid to tables to keep with headers */
                 break-before: avoid;
             }
@@ -303,7 +340,9 @@
 
         /* --- Report styles for the *viewer* (on-screen) --- */
         .print-page {
-            background: white;
+            /* V100 FIX: Removed background-color: white to ensure print media rules take over, */
+            /* but kept the shadow for the on-screen preview look. */
+            background: #ffffff;
             width: 210mm; 
             min-height: 297mm; 
             padding: 2cm;
@@ -313,6 +352,11 @@
             box-sizing: border-box; 
             /* V71: Reduce base font size for better fitting */
             font-size: 9pt; 
+        }
+        .print-page-daywise {
+            /* V93 FIX: Ensure Day-wise is visible in landscape on screen */
+            width: 297mm; /* A4 height */
+            min-height: 210mm; /* A4 width */
         }
         .print-page h1 {
             font-size: 16pt;
@@ -332,11 +376,23 @@
             text-align: center;
             margin-bottom: 1rem;
         }
+        /* V98: On-screen view of summary box in the body */
         .print-page .course-summary {
             font-size: 11pt;
             margin-bottom: 1rem;
             padding: 0.5rem;
             border: 1px solid #ccc;
+        }
+
+        /* V98: On-screen view of summary box in the footer */
+        .invigilator-footer .course-summary-footer {
+            display: block;
+            font-size: 10pt;
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+            /* V99 FIX: Add border for the box */
+            border: 1px solid #ccc;
+            text-align: left;
         }
         
         /* (V28) Style for new location header */
@@ -621,10 +677,18 @@
                     College Name
                 </h2>
                 <!-- V48: College Name Input -->
-                <div class="mb-6">
-                    <label for="college-name-input" class="block text-sm font-medium text-gray-700 mb-1">College Name (for Reports)</label>
-                    <input type="text" id="college-name-input" class="block w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm" placeholder="e.g., University of Calicut">
+                <div class="mb-6 flex gap-2 items-end">
+                    <div class="flex-grow">
+                        <label for="college-name-input" class="block text-sm font-medium text-gray-700 mb-1">College Name (for Reports)</label>
+                        <input type="text" id="college-name-input" class="block w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm" placeholder="e.g., University of Calicut">
+                    </div>
+                    <!-- V97: New Save Button for College Name -->
+                    <button id="save-college-name-button" class="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-500 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-600">
+                        Save
+                    </button>
                 </div>
+                <div id="college-name-status" class="text-sm font-medium text-green-600 mt-2 block h-5"></div>
+                 
                  <h2 class="text-xl font-bold text-gray-800 mb-4 pb-2 border-b border-gray-300">
                     Master Reset
                 </h2>
@@ -682,7 +746,7 @@
             <h1 class="text-3xl font-bold text-gray-800 mb-6">QP Code Settings</h1>
             
             <div id="qpcode-content-wrapper" class="hidden">
-                <!-- V61: Session Selector for QP Codes -->
+                <!-- Session Selector for QP Codes -->
                 <div class="mb-4">
                     <label for="session-select-qp" class="block text-sm font-medium text-gray-700 mb-1">Select Exam Session:</label>
                     <select id="session-select-qp" class="block w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm">
@@ -837,9 +901,11 @@
     <!-- *** Report Controls *** -->
     <div id="report-controls" class="container max-w-2xl mx-auto p-4 bg-gray-100 rounded-lg hidden">
         <span id="report-status" class="text-sm font-medium text-gray-700"></span>
+        <!-- V91: Updated control buttons -->
         <div class="flex flex-wrap gap-2 mt-2">
+            <!-- V96: Download PDF button removed as requested -->
             <button id="final-print-button" class="flex-1 inline-flex justify-center items-center rounded-md border border-transparent bg-green-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-green-700">
-                Print Report
+                Print Report (Browser)
             </button>
             <button id="clear-report-button" class="flex-1 inline-flex justify-center items-center rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
                 Clear Report
@@ -850,7 +916,7 @@
 
 
     <!-- *** Report Output Area *** -->
-    <div id="report-output-area" class="mt-6 w-full" style="display: none;">
+    <div id="report-output-area" class- ="mt-6 w-full" style="display: none;">
         <!-- Report pages will be injected here -->
     </div>
     
@@ -1160,7 +1226,7 @@
             V40: Re-written to be STATEFUL and FILE-BASED.
             """
             errors_list = []
-            try:
+            try: # <-- CORRECTED SYNTAX
                 # --- 1. Reset all UI elements ---
                 csv_download_container.innerHTML = ""
                 generate_report_button.disabled = True
@@ -1373,6 +1439,7 @@
 
         // --- Global var to hold data from the last *report run* ---
         let lastGeneratedRoomData = [];
+        let lastGeneratedReportType = ""; // V91: To track the type for PDF filename
         
         // --- (V28) Global var to hold room config map for report generation ---
         let currentRoomConfig = {};
@@ -1397,6 +1464,7 @@
         const reportControls = document.getElementById('report-controls');
         const reportOutputArea = document.getElementById('report-output-area');
         const reportStatus = document.getElementById('report-status');
+        // const downloadPdfButton = document.getElementById('download-pdf-button'); // V96: Removed
         const finalPrintButton = document.getElementById('final-print-button');
         const clearReportButton = document.getElementById('clear-report-button');
         const roomCsvDownloadContainer = document.getElementById('room-csv-download-container');
@@ -1419,6 +1487,10 @@
         
         // --- (V26) Get references to NEW Room Settings elements ---
         const collegeNameInput = document.getElementById('college-name-input'); // V48
+        // V97: New Status and Button
+        const saveCollegeNameButton = document.getElementById('save-college-name-button'); 
+        const collegeNameStatus = document.getElementById('college-name-status');
+        
         const roomConfigContainer = document.getElementById('room-config-container');
         const addRoomButton = document.getElementById('add-room-button');
         const saveRoomConfigButton = document.getElementById('save-room-config-button');
@@ -1527,9 +1599,8 @@
         
         // --- (V69) FIX: Robust Room Config Loading (handles NULL) ---
         function getRoomCapacitiesFromStorage() {
-            // V48: Load College Name
+            // V48: Load College Name (Read, but do not update UI here)
             currentCollegeName = localStorage.getItem(COLLEGE_NAME_KEY) || "University of Calicut";
-            if (collegeNameInput) collegeNameInput.value = currentCollegeName; // Update UI (check for null since it might not be visible)
             
             // Load Room Config
             let savedConfigJson = localStorage.getItem(ROOM_CONFIG_KEY);
@@ -1658,14 +1729,19 @@
             reportControls.classList.add('hidden');
             roomCsvDownloadContainer.innerHTML = "";
             lastGeneratedRoomData = [];
+            lastGeneratedReportType = ""; // V91: Reset report type
             await new Promise(resolve => setTimeout(resolve, 50));
 
             try {
+                // *** V95 FIX: Refresh college name from local storage BEFORE generation ***
+                currentCollegeName = localStorage.getItem(COLLEGE_NAME_KEY) || "University of Calicut";
+                
                 // 1. Get FILTERED RAW student data
                 const data = getFilteredReportData('room-wise');
 
                 if (data.length === 0) {
-                    alert("No data found for the selected filter/session.");
+                    // V70 FIX: Use alert instead of custom modal
+                    alert("No data found for the selected filter/session."); 
                     return;
                 }
                 
@@ -1674,6 +1750,7 @@
                 
                 // 3. Store data for CSV
                 lastGeneratedRoomData = processed_rows_with_rooms;
+                lastGeneratedReportType = "Roomwise_Seating_Report"; // V91: Set report type
 
                 // 4. Group data for Report Generation
                 const sessions = {};
@@ -1714,21 +1791,20 @@
                     const location = (roomInfo && roomInfo.location) ? roomInfo.location : "";
                     const locationHtml = location ? `<div class="report-location-header">Location: ${location}</div>` : "";
 
+                    // V98: Prepare Course Summary for the FOOTER
                     let courseSummaryHtml = '';
                     for (const [courseName, count] of Object.entries(session.courseCounts)) {
-                        const shortCourseName = courseName.split(' ').slice(0, 4).join(' ') + (courseName.split(' ').length > 4 ? '...' : '');
                         courseSummaryHtml += `<div style="font-weight: bold;">${courseName}: ${count} Student(s)</div>`; // V38: Show full course name
                     }
                     
+                    // *** COLLEGE NAME IS CORRECTLY REFLECTED HERE ***
                     const pageHeaderHtml = `
                         <!-- V89: Wrap headers in group to prevent page break -->
                         <div class="print-header-group">
                             <h1>${currentCollegeName}</h1> <!-- V48: Use college name -->
                             <h2>${session.Date} &nbsp;|&nbsp; ${session.Time} &nbsp;|&nbsp; ${session.Room}</h2>
                             ${locationHtml} <!-- (V28) Added location here -->
-                            <div class="course-summary">
-                                ${courseSummaryHtml}
-                            </div>
+                            <!-- V99 FIX: Removed course-summary div from header -->
                         </div>
                     `;
                     
@@ -1745,9 +1821,13 @@
                             </thead>
                             <tbody>
                     `; 
-                    const tableCloseHtml = `</tbody></table>`;
                     const invigilatorFooterHtml = `
                         <div class="invigilator-footer">
+                            <!-- V98: ADDED COURSE SUMMARY HERE (Moved from top) -->
+                            <div class="course-summary-footer">
+                                <strong>Course Summary:</strong>
+                                ${courseSummaryHtml}
+                            </div>
                             <div><strong>Answer Booklets Received:</strong> _________________</div>
                             <div><strong>Answer Booklets Used:</strong> _________________</div>
                             <div><strong>Answer Booklets Returned (Balance):</strong> _________________</div>
@@ -1763,7 +1843,8 @@
                         studentList.forEach((student) => { 
                             const studentNumber = student.originalIndex + 1; 
                             const tableCourseName = student.Course; // V38: Show full course name
-                            // V70: Truncate Course Name to 4 words for column 1
+                            
+                            // V97 FIX: Truncate Course Name to first 4 words for table cell
                             const words = tableCourseName.split(/\s+/);
                             const truncatedCourseName = words.slice(0, 4).join(' ') + (words.length > 4 ? '...' : '');
                             
@@ -1793,7 +1874,8 @@
 
                     previousCourseName = ""; 
                     const tableRowsPage1 = generateTableRows(studentsPage1);
-                    allPagesHtml += `<div class="print-page">${pageHeaderHtml}${tableHeaderHtml}${tableRowsPage1}${tableCloseHtml}`;
+                    // V92 FIX: Ensure table is properly closed on every page
+                    allPagesHtml += `<div class="print-page">${pageHeaderHtml}${tableHeaderHtml}${tableRowsPage1}</tbody></table>`; 
                     if (studentsPage2.length === 0) allPagesHtml += invigilatorFooterHtml;
                     allPagesHtml += `</div>`; 
                     totalPagesGenerated++;
@@ -1801,7 +1883,8 @@
                     if (studentsPage2.length > 0) {
                         previousCourseName = ""; 
                         const tableRowsPage2 = generateTableRows(studentsPage2);
-                        allPagesHtml += `<div class="print-page">${tableHeaderHtml}${tableRowsPage2}${tableCloseHtml}${invigilatorFooterHtml}</div>`; 
+                        // V92 FIX: Ensure table is properly closed on every page
+                        allPagesHtml += `<div class="print-page">${tableHeaderHtml}${tableRowsPage2}</tbody></table>${invigilatorFooterHtml}</div>`; 
                         totalPagesGenerated++;
                     }
                 });
@@ -1839,9 +1922,13 @@
             reportControls.classList.add('hidden');
             roomCsvDownloadContainer.innerHTML = "";
             lastGeneratedRoomData = []; // This report doesn't use the room CSV
+            lastGeneratedReportType = ""; // V91: Reset report type
             await new Promise(resolve => setTimeout(resolve, 50));
 
             try {
+                // *** V95 FIX: Refresh college name from local storage BEFORE generation ***
+                currentCollegeName = localStorage.getItem(COLLEGE_NAME_KEY) || "University of Calicut";
+                
                 // 1. Get FILTERED RAW student data
                 const data = getFilteredReportData('day-wise');
 
@@ -1977,8 +2064,33 @@
                         const pageStudents = session.students.slice(i, i + STUDENTS_PER_PAGE);
                         totalPagesGenerated++;
                         
+                        // V92 FIX: For compact report, render as a single column for PDF export if many pages are needed.
                         const col1Students = pageStudents.slice(0, STUDENTS_PER_COLUMN);
-                        const col2Students = pageStudents.slice(STUDENTS_PER_COLUMN); // (V31) Changed to get rest of students
+                        const col2Students = pageStudents.slice(STUDENTS_PER_COLUMN); 
+                        
+                        // To ensure PDF doesn't break tables, we will manually merge the two columns if they exist.
+                        // This allows the table to flow naturally and use the existing page break CSS rules.
+                        // However, on-screen display still uses flex/columns via CSS.
+                        
+                        let columnHtml = '';
+                        if (col1Students.length > 0 && col2Students.length === 0) {
+                            // Only column 1 needed
+                            columnHtml = `<div class="column">${buildColumnTable(col1Students)}</div>`;
+                        } else if (col1Students.length > 0 && col2Students.length > 0) {
+                            // Two columns needed (default screen view). We use the container for display on screen,
+                            // but CSS print media handles how they break/flow for print.
+                            columnHtml = `
+                                <div class="column-container">
+                                    <div class="column">
+                                        ${buildColumnTable(col1Students)}
+                                    </div>
+                                    <div class="column">
+                                        ${buildColumnTable(col2Students)}
+                                    </div>
+                                </div>
+                            `;
+                        }
+
 
                         allPagesHtml += `
                             <div class="print-page print-page-daywise">
@@ -1989,14 +2101,7 @@
                                     <!-- V48: Use college name -->
                                     <h2>${currentCollegeName} &nbsp;|&nbsp; ${session.Date} &nbsp;|&nbsp; ${session.Time}</h2>
                                 </div>
-                                <div class="column-container">
-                                    <div class="column">
-                                        ${buildColumnTable(col1Students)}
-                                    </div>
-                                    <div class="column">
-                                        ${col2Students.length > 0 ? buildColumnTable(col2Students) : ''}
-                                    </div>
-                                </div>
+                                ${columnHtml}
                             </div>
                         `;
                     }
@@ -2008,6 +2113,7 @@
                 reportStatus.textContent = `Generated ${totalPagesGenerated} compact pages for ${sortedSessionKeys.length} sessions.`;
                 reportControls.classList.remove('hidden');
                 roomCsvDownloadContainer.innerHTML = ""; // This report has no CSV
+                lastGeneratedReportType = "Daywise_Seating_Details"; // V91: Set report type
 
             } catch (e) {
                 console.error("Error generating day-wise report:", e);
@@ -2017,6 +2123,116 @@
                 generateDaywiseReportButton.disabled = false;
                 // V49: Button text updated
                 generateDaywiseReportButton.textContent = "Generate Seating Details for Candidates (Compact)";
+            }
+        });
+        
+        // --- V91: Event listener for "Generate Question Paper Report" (Added report type set) ---
+        generateQPaperReportButton.addEventListener('click', async () => {
+            generateQPaperReportButton.disabled = true;
+            generateQPaperReportButton.textContent = "Generating...";
+            reportOutputArea.innerHTML = "";
+            reportControls.classList.add('hidden');
+            roomCsvDownloadContainer.innerHTML = "";
+            lastGeneratedReportType = ""; // V91: Reset report type
+            await new Promise(resolve => setTimeout(resolve, 50));
+            
+            try {
+                // *** V95 FIX: Refresh college name from local storage BEFORE generation ***
+                currentCollegeName = localStorage.getItem(COLLEGE_NAME_KEY) || "University of Calicut";
+                
+                // V68: Get Filtered data
+                const filteredData = getFilteredReportData('q-paper');
+                
+                // Group the filtered data to generate the Q-Paper summary dynamically
+                const qPaperSummary = {};
+                filteredData.forEach(item => {
+                    const key = `${item.Date}_${item.Time}`;
+                    if (!qPaperSummary[key]) {
+                        qPaperSummary[key] = { Date: item.Date, Time: item.Time, courses: {} };
+                    }
+                    const courseKey = item.Course;
+                    if (!qPaperSummary[key].courses[courseKey]) {
+                        qPaperSummary[key].courses[courseKey] = 0;
+                    }
+                    qPaperSummary[key].courses[courseKey]++;
+                });
+
+                const sessions = qPaperSummary;
+                
+                if (Object.keys(sessions).length === 0) {
+                    alert("No question paper data found for the selected filter/session.");
+                    return;
+                }
+                
+                let allPagesHtml = '';
+                let totalPages = 0;
+                const sortedSessionKeys = Object.keys(sessions).sort((a, b) => a.localeCompare(b));
+                
+                sortedSessionKeys.forEach(key => {
+                    const session = sessions[key];
+                    totalPages++;
+                    let totalStudentsInSession = 0;
+                    
+                    let tableRowsHtml = '';
+                    const sortedCourses = Object.keys(session.courses).sort();
+
+                    sortedCourses.forEach((courseName, index) => {
+                        const count = session.courses[courseName];
+                        totalStudentsInSession += count;
+                        tableRowsHtml += `
+                            <tr>
+                                <td class="sl-col">${index + 1}</td>
+                                <td class="course-col">${courseName}</td>
+                                <td class="count-col">${count}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    const pageHtml = `
+                        <div class="print-page">
+                            <!-- V89: Wrap headers in group to prevent page break -->
+                            <div class="print-header-group">
+                                <h1>${currentCollegeName}</h1> <!-- V48: Use college name -->
+                                <h2>Question Paper Summary</h2>
+                                <h3>${session.Date} &nbsp;|&nbsp; ${session.Time}</h3>
+                            </div>
+                            
+                            <table class="q-paper-table print-table">
+                                <thead>
+                                    <tr>
+                                        <th class="sl-col">Sl No</th>
+                                        <th class="course-col">Course Name</th>
+                                        <th class="count-col">Student Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${tableRowsHtml}
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td colspan="2" style="text-align: right;"><strong>Total Students</strong></td>
+                                        <td class="count-col"><strong>${totalStudentsInSession}</strong></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    `;
+                    allPagesHtml += pageHtml;
+                });
+                
+                reportOutputArea.innerHTML = allPagesHtml;
+                reportOutputArea.style.display = 'block'; 
+                reportStatus.textContent = `Generated ${totalPages} summary pages for ${sortedSessionKeys.length} sessions.`;
+                reportControls.classList.remove('hidden');
+                lastGeneratedReportType = "Question_Paper_Summary"; // V91: Set report type
+
+            } catch(e) {
+                console.error("Error generating Q-Paper report:", e);
+                reportStatus.textContent = "An error occurred generating the report.";
+                reportControls.classList.remove('hidden');
+            } finally {
+                generateQPaperReportButton.disabled = false;
+                generateQPaperReportButton.textContent = "Generate Question Paper Report";
             }
         });
         
@@ -2033,6 +2249,9 @@
             await new Promise(resolve => setTimeout(resolve, 50));
             
             try {
+                // *** V95 FIX: Refresh college name from local storage BEFORE generation ***
+                currentCollegeName = localStorage.getItem(COLLEGE_NAME_KEY) || "University of Calicut";
+                
                 // 1. Get all students for this session
                 const [date, time] = sessionKey.split(' | ');
                 const sessionStudents = allStudentData.filter(s => s.Date === date && s.Time === time);
@@ -2131,6 +2350,7 @@
                 reportStatus.textContent = `Generated ${totalPages} page(s) for ${sortedCourseKeys.length} courses.`;
                 reportControls.classList.remove('hidden');
                 roomCsvDownloadContainer.innerHTML = ""; // This report has no CSV
+                lastGeneratedReportType = `Absentee_Statement_${date.replace(/\./g, '_')}_${time.replace(/\s/g, '')}`; // V91: Set report type
 
             } catch (e) {
                 console.error("Error generating absentee report:", e);
@@ -2141,9 +2361,13 @@
                 generateAbsenteeReportButton.textContent = "Generate Absentee Statement";
             }
         });
-
+        
+        // --- V96: Removed PDF Download Functionality (Replaced with native Print) ---
+        // downloadPdfButton.addEventListener('click', ... removed ...)
+        
         // --- Event listener for the "Print" button ---
         finalPrintButton.addEventListener('click', () => {
+            // This button now exclusively uses the native browser print function
             window.print();
         });
 
@@ -2157,6 +2381,7 @@
             reportControls.classList.add('hidden');
             roomCsvDownloadContainer.innerHTML = ""; // Clear CSV button
             lastGeneratedRoomData = []; // Clear data
+            lastGeneratedReportType = ""; // V91: Clear report type
         }
         
         // --- Function to download the room-allocated CSV ---
@@ -2173,13 +2398,14 @@
             lastGeneratedRoomData.forEach(row => {
                 // (V28) Get location for this row
                 const roomInfo = currentRoomConfig[row['Room No']];
-                const location = (roomInfo && roomInfo.location) ? roomInfo.location.toString() : "";
-                row['Location'] = location; // Add it to the row object for mapping
+                const location = (roomInfo && roomInfo.location) ? row['Location'] || roomInfo.location.toString() : ""; // V91 FIX: Use row location if present
                 
                 const values = headers.map(header => {
                     let val = row[header] ? row[header].toString() : "";
+                    if (header === 'Location') { val = location; } // V91 FIX: Explicitly set location
+                    
                     val = val.replace(/"/g, '""');
-                    if (val.includes(',')) {
+                    if (val.includes(',') || val.includes('\n')) {
                         val = `"${val}"`;
                     }
                     return val;
@@ -2220,15 +2446,20 @@
             clearReport(); // Always clear reports when switching views
         }
 
-        // --- (V48) NEW ROOM SETTINGS LOGIC (with College Name) ---
+        // --- (V97) College Name Save Logic ---
+        saveCollegeNameButton.addEventListener('click', () => {
+            const collegeName = collegeNameInput.value.trim() || "University of Calicut";
+            localStorage.setItem(COLLEGE_NAME_KEY, collegeName);
+            currentCollegeName = collegeName; // Update global var immediately
+            
+            collegeNameStatus.textContent = "College name saved!";
+            setTimeout(() => { collegeNameStatus.textContent = ""; }, 2000);
+        });
         
         // --- (V48) Save from dynamic form (uses new object structure) ---
         saveRoomConfigButton.addEventListener('click', () => {
             try {
-                // V48: Save College Name
-                const collegeName = collegeNameInput.value.trim() || "University of Calicut";
-                localStorage.setItem(COLLEGE_NAME_KEY, collegeName);
-                currentCollegeName = collegeName; // Update global var
+                // NOTE: College Name saving is now handled by saveCollegeNameButton
                 
                 // Save Room Config
                 const newConfig = {};
@@ -2274,7 +2505,8 @@
         function loadRoomConfig() {
             // V48: Load College Name
             currentCollegeName = localStorage.getItem(COLLEGE_NAME_KEY) || "University of Calicut";
-            if (collegeNameInput) collegeNameInput.value = currentCollegeName; // V82: Check for existence since it moved
+            // *** V91 FIX: Populate the input field with the saved value ***
+            if (collegeNameInput) collegeNameInput.value = currentCollegeName; 
             
             // Load Room Config
             let savedConfigJson = localStorage.getItem(ROOM_CONFIG_KEY);
@@ -2366,109 +2598,7 @@
         
         
         // --- Q-PAPER REPORT LOGIC ---
-        generateQPaperReportButton.addEventListener('click', async () => {
-            generateQPaperReportButton.disabled = true;
-            generateQPaperReportButton.textContent = "Generating...";
-            reportOutputArea.innerHTML = "";
-            reportControls.classList.add('hidden');
-            roomCsvDownloadContainer.innerHTML = "";
-            await new Promise(resolve => setTimeout(resolve, 50));
-            
-            try {
-                // V68: Get Filtered data
-                const filteredData = getFilteredReportData('q-paper');
-                
-                // Group the filtered data to generate the Q-Paper summary dynamically
-                const qPaperSummary = {};
-                filteredData.forEach(item => {
-                    const key = `${item.Date}_${item.Time}`;
-                    if (!qPaperSummary[key]) {
-                        qPaperSummary[key] = { Date: item.Date, Time: item.Time, courses: {} };
-                    }
-                    const courseKey = item.Course;
-                    if (!qPaperSummary[key].courses[courseKey]) {
-                        qPaperSummary[key].courses[courseKey] = 0;
-                    }
-                    qPaperSummary[key].courses[courseKey]++;
-                });
-
-                const sessions = qPaperSummary;
-                
-                if (Object.keys(sessions).length === 0) {
-                    alert("No question paper data found for the selected filter/session.");
-                    return;
-                }
-                
-                let allPagesHtml = '';
-                let totalPages = 0;
-                const sortedSessionKeys = Object.keys(sessions).sort((a, b) => a.localeCompare(b));
-                
-                sortedSessionKeys.forEach(key => {
-                    const session = sessions[key];
-                    totalPages++;
-                    let totalStudentsInSession = 0;
-                    
-                    let tableRowsHtml = '';
-                    const sortedCourses = Object.keys(session.courses).sort();
-
-                    sortedCourses.forEach((courseName, index) => {
-                        const count = session.courses[courseName];
-                        totalStudentsInSession += count;
-                        tableRowsHtml += `
-                            <tr>
-                                <td class="sl-col">${index + 1}</td>
-                                <td class="course-col">${courseName}</td>
-                                <td class="count-col">${count}</td>
-                            </tr>
-                        `;
-                    });
-                    
-                    const pageHtml = `
-                        <div class="print-page">
-                            <!-- V89: Wrap headers in group to prevent page break -->
-                            <div class="print-header-group">
-                                <h1>${currentCollegeName}</h1> <!-- V48: Use college name -->
-                                <h2>Question Paper Summary</h2>
-                                <h3>${session.Date} &nbsp;|&nbsp; ${session.Time}</h3>
-                            </div>
-                            
-                            <table class="q-paper-table print-table">
-                                <thead>
-                                    <tr>
-                                        <th class="sl-col">Sl No</th>
-                                        <th class="course-col">Course Name</th>
-                                        <th class="count-col">Student Count</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${tableRowsHtml}
-                                </tbody>
-                                <tfoot>
-                                    <tr>
-                                        <td colspan="2" style="text-align: right;"><strong>Total Students</strong></td>
-                                        <td class="count-col"><strong>${totalStudentsInSession}</strong></td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                    `;
-                    allPagesHtml += pageHtml;
-                });
-                
-                reportOutputArea.innerHTML = allPagesHtml;
-                reportOutputArea.style.display = 'block'; 
-                reportStatus.textContent = `Generated ${totalPages} summary pages for ${sortedSessionKeys.length} sessions.`;
-                reportControls.classList.remove('hidden');
-
-            } catch(e) {
-                console.error("Error generating Q-Paper report:", e);
-                reportStatus.textContent = "An error occurred generating the report.";
-                reportControls.classList.remove('hidden');
-            } finally {
-                generateQPaperReportButton.disabled = false;
-                generateQPaperReportButton.textContent = "Generate Question Paper Report";
-            }
-        });
+        // Listener moved above
         
         // --- (V33) NEW CSV UPLOAD LOGIC ---
         
@@ -2858,7 +2988,7 @@
                     return;
                 }
                 
-                // Get unique sessions (same as absentee tab)
+                // Get unique sessions
                 const sessions = new Set(allStudentData.map(s => `${s.Date} | ${s.Time}`));
                 allStudentSessions = Array.from(sessions).sort();
                 
@@ -3054,7 +3184,8 @@
         // --- V65: Initial Data Load on Startup ---
         function loadInitialData() {
             // 1. Load configuration and UI elements (Room settings, college name)
-            loadRoomConfig();
+            // *** V91 FIX: Call loadRoomConfig to ensure collegeNameInput is populated ***
+            loadRoomConfig(); 
             
             // 2. Check for base student data persistence
             const savedDataJson = localStorage.getItem(BASE_DATA_KEY);
@@ -3150,4 +3281,3 @@
 
 </body>
 </html>
-
